@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "name": "memory-curator",
+      "path": ".pmg/skills/memory-curator.md",
+      "governanceModule": "Memory Curator"
+    },
+    {
+      "name": "architecture-guardian",
+      "path": ".pmg/skills/architecture-guardian.md",
+      "governanceModule": "Architecture Guardian"
+    },
+    {
+      "name": "technical-debt-auditor",
+      "path": ".pmg/skills/technical-debt-auditor.md",
+      "governanceModule": "Technical Debt Auditor"
+    },
+    {
+      "name": "dependency-governor",
+      "path": ".pmg/skills/dependency-governor.md",
+      "governanceModule": "Dependency Governor"
+    },
+    {
+      "name": "security-reviewer",
+      "path": ".pmg/skills/security-reviewer.md",
+      "governanceModule": "Security Reviewer"
+    },
+    {
+      "name": "performance-reviewer",
+      "path": ".pmg/skills/performance-reviewer.md",
+      "governanceModule": "Performance Reviewer"
+    }
+  ]
+}

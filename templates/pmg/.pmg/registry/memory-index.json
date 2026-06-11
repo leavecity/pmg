@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "memory": [
+    {
+      "path": ".pmg/memory/project.md",
+      "domain": "project",
+      "status": "confirmed"
+    },
+    {
+      "path": ".pmg/memory/architecture.md",
+      "domain": "architecture",
+      "status": "pending"
+    },
+    {
+      "path": ".pmg/memory/coding-style.md",
+      "domain": "coding-style",
+      "status": "pending"
+    },
+    {
+      "path": ".pmg/memory/state-management.md",
+      "domain": "state-management",
+      "status": "pending"
+    },
+    {
+      "path": ".pmg/memory/i18n.md",
+      "domain": "i18n",
+      "status": "pending"
+    },
+    {
+      "path": ".pmg/memory/dependencies.md",
+      "domain": "dependencies",
+      "status": "pending"
+    },
+    {
+      "path": ".pmg/memory/testing.md",
+      "domain": "testing",
+      "status": "pending"
+    },
+    {
+      "path": ".pmg/memory/security.md",
+      "domain": "security",
+      "status": "pending"
+    },
+    {
+      "path": ".pmg/memory/performance.md",
+      "domain": "performance",
+      "status": "pending"
+    },
+    {
+      "path": ".pmg/memory/pitfalls.md",
+      "domain": "pitfalls",
+      "status": "pending"
+    },
+    {
+      "path": ".pmg/memory/technical-debt.md",
+      "domain": "technical-debt",
+      "status": "pending"
+    }
+  ]
+}

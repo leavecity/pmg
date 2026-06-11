@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "memory": [
+    {
+      "path": ".pmg/memory/project.md",
+      "domain": "project",
+      "status": "confirmed"
+    },
+    {
+      "path": ".pmg/memory/architecture.md",
+      "domain": "architecture",
+      "status": "confirmed"
+    },
+    {
+      "path": ".pmg/memory/testing.md",
+      "domain": "testing",
+      "status": "confirmed"
+    },
+    {
+      "path": ".pmg/memory/pending.md",
+      "domain": "pending",
+      "status": "pending"
+    }
+  ]
+}

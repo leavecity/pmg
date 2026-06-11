@@ -1,0 +1,15 @@
+{
+  "version": 1,
+  "skills": [
+    {
+      "name": "memory-curator",
+      "path": "templates/pmg/.pmg/skills/memory-curator.md",
+      "governanceModule": "Memory Curator"
+    },
+    {
+      "name": "architecture-guardian",
+      "path": "templates/pmg/.pmg/skills/architecture-guardian.md",
+      "governanceModule": "Architecture Guardian"
+    }
+  ]
+}

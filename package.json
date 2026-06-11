@@ -1,0 +1,42 @@
+{
+  "name": "project-memory-governance",
+  "version": "0.1.0",
+  "description": "Repository-native memory governance for AI coding agents.",
+  "type": "module",
+  "bin": {
+    "pmg": "./dist/cli.js"
+  },
+  "files": [
+    "dist",
+    "templates",
+    "docs",
+    "examples",
+    "README.md",
+    "AGENTS.md",
+    "PMG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "npm run build && node --test test/*.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "codex",
+    "memory",
+    "governance",
+    "spec-driven-development",
+    "adr"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.17"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.29",
+    "typescript": "^5.8.3"
+  }
+}
