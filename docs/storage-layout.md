@@ -8,6 +8,8 @@ PMG.md
 .pmg/
   constitution.md
   memory/
+    proposals/
+    archive/
   specs/
   adr/
   reviews/

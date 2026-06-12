@@ -39,15 +39,15 @@ pmg status
 pmg scan
 pmg doctor
 pmg context build
+pmg memory propose
+pmg memory promote
+pmg memory archive
 ```
 
 Planned commands:
 
 ```bash
 pmg memory add
-pmg memory propose
-pmg memory promote
-pmg memory archive
 pmg review create
 pmg adr create
 pmg spec create
@@ -90,6 +90,22 @@ node dist/cli.js context build --path /path/to/repo --task "review dependency ch
 
 After package publication, the same commands are intended to be available through the `pmg` binary.
 
+Propose and promote durable memory:
+
+```bash
+node dist/cli.js memory propose \
+  --path /path/to/repo \
+  --title "Login token handling" \
+  --domain security \
+  --observation "Login pages must avoid leaking auth tokens." \
+  --knowledge "Authentication UI must not log, render, or persist raw auth tokens."
+
+node dist/cli.js memory promote 2026-06-12-login-token-handling \
+  --path /path/to/repo \
+  --target security \
+  --reason "Confirmed by security review."
+```
+
 ## Design principles
 
 - Keep the system vendor-neutral.
@@ -112,6 +128,10 @@ test/                 Node test runner tests
 ```
 
 The initialized PMG layout is documented in [docs/storage-layout.md](docs/storage-layout.md), and file formats are documented in [docs/file-formats.md](docs/file-formats.md).
+
+## CI
+
+The repository includes a GitHub Actions workflow at `.github/workflows/ci.yml` that runs install, build, and tests on Node 20 and Node 22.
 
 ## License
 

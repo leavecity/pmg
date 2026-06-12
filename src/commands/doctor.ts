@@ -1,27 +1,127 @@
 import { createStatusReport } from "./status.js";
 import { parseArgs, getStringFlag } from "../lib/args.js";
 import path from "node:path";
+import { listMarkdownFiles, pathExists, readText } from "../lib/fs.js";
+import { readMetadata } from "../lib/markdown.js";
+
+interface DoctorFinding {
+  severity: "error" | "warning";
+  path: string;
+  message: string;
+}
 
 export async function doctorCommand(rawArgs: string[], cwd: string): Promise<void> {
   const args = parseArgs(rawArgs);
   const root = path.resolve(cwd, getStringFlag(args, "path") ?? args.positional[0] ?? ".");
   const report = await createStatusReport(root);
+  const findings = await createDoctorFindings(root);
 
   console.log(`PMG doctor for ${root}`);
 
-  if (report.ok) {
+  if (report.ok && findings.every((finding) => finding.severity !== "error")) {
     console.log("No blocking issues found.");
   } else {
-    console.log("Missing required PMG files:");
+    console.log("Blocking issues found:");
     for (const check of report.checks.filter((item) => item.required && !item.ok)) {
       console.log(`- ${check.path}`);
+    }
+    for (const finding of findings.filter((item) => item.severity === "error")) {
+      console.log(`- ${finding.path}: ${finding.message}`);
+    }
+  }
+
+  const warnings = findings.filter((finding) => finding.severity === "warning");
+  if (warnings.length > 0) {
+    console.log("");
+    console.log("Warnings:");
+    for (const warning of warnings) {
+      console.log(`- ${warning.path}: ${warning.message}`);
     }
   }
 
   console.log("");
   console.log("Next checks planned for future releases:");
-  console.log("- registry schema validation");
   console.log("- stale memory detection");
   console.log("- conflicting memory detection");
   console.log("- template drift detection");
+}
+
+export async function createDoctorFindings(root: string): Promise<DoctorFinding[]> {
+  const findings: DoctorFinding[] = [];
+
+  await checkJsonRegistry(root, ".pmg/registry/memory-index.json", "memory", findings);
+  await checkJsonRegistry(root, ".pmg/registry/skills.json", "skills", findings);
+  await checkMemoryStatus(root, findings);
+
+  return findings;
+}
+
+async function checkJsonRegistry(
+  root: string,
+  relativePath: string,
+  key: "memory" | "skills",
+  findings: DoctorFinding[]
+): Promise<void> {
+  const absolutePath = path.join(root, relativePath);
+
+  if (!(await pathExists(absolutePath))) {
+    return;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(await readText(absolutePath));
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    findings.push({ severity: "error", path: relativePath, message: `invalid JSON: ${message}` });
+    return;
+  }
+
+  if (!isRecord(parsed)) {
+    findings.push({ severity: "error", path: relativePath, message: "registry must be a JSON object" });
+    return;
+  }
+
+  const entries = parsed[key];
+  if (!Array.isArray(entries)) {
+    findings.push({ severity: "error", path: relativePath, message: `missing ${key} array` });
+    return;
+  }
+
+  for (const entry of entries) {
+    if (!isRecord(entry) || typeof entry.path !== "string") {
+      findings.push({ severity: "error", path: relativePath, message: "registry entry missing path" });
+      continue;
+    }
+
+    if (!(await pathExists(path.join(root, entry.path)))) {
+      findings.push({
+        severity: "error",
+        path: relativePath,
+        message: `referenced file does not exist: ${entry.path}`
+      });
+    }
+  }
+}
+
+async function checkMemoryStatus(root: string, findings: DoctorFinding[]): Promise<void> {
+  const memoryRoot = path.join(root, ".pmg", "memory");
+  const files = await listMarkdownFiles(memoryRoot);
+
+  for (const filePath of files) {
+    const relativePath = path.relative(root, filePath).split(path.sep).join("/");
+    const metadata = readMetadata(await readText(filePath));
+
+    if (!metadata.status) {
+      findings.push({
+        severity: "warning",
+        path: relativePath,
+        message: "memory file has no Status metadata"
+      });
+    }
+  }
+}
+
+function isRecord(input: unknown): input is Record<string, unknown> {
+  return typeof input === "object" && input !== null && !Array.isArray(input);
 }

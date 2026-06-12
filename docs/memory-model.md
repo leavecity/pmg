@@ -17,3 +17,11 @@ Observation -> Extraction -> Classification -> Pending -> Review -> Approval -> 
 ```
 
 Durable memory should be promoted only when policy allows it. One-off observations, temporary task details, and unverified preferences should not become confirmed rules.
+
+## MVP commands
+
+`pmg memory propose` writes a pending proposal under `.pmg/memory/proposals/`.
+
+`pmg memory promote` appends the durable knowledge candidate to a target memory file and moves the proposal to `.pmg/memory/archive/promoted/` as an audit record.
+
+`pmg memory archive` marks a memory file or proposal as archived and moves it to `.pmg/memory/archive/archived/`.

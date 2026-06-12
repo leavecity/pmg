@@ -1,5 +1,7 @@
 # Pending Memory
 
+Status: pending
+
 Use this file for knowledge that may become durable but is not confirmed yet.
 
 Each entry should include:

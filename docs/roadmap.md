@@ -13,8 +13,8 @@
 
 ## 0.2 Memory Lifecycle
 
-- memory proposal workflow
-- promotion and archive commands
+- richer memory proposal workflow
+- stricter promotion and archive validation
 - memory status validation
 - conflict template support
 

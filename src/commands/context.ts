@@ -2,6 +2,7 @@ import path from "node:path";
 import { mkdir } from "node:fs/promises";
 import { parseArgs, getNumberFlag, getStringFlag, hasFlag } from "../lib/args.js";
 import { listMarkdownFiles, pathExists, readText, toPosixPath, writeText } from "../lib/fs.js";
+import { readMetadata } from "../lib/markdown.js";
 import { excerpt, scoreText } from "../lib/text.js";
 
 interface Candidate {
@@ -105,7 +106,8 @@ async function collectCandidates(root: string, task: string): Promise<Candidate[
 
       const content = await readText(filePath);
       const relativePath = toPosixPath(path.relative(root, filePath));
-      const score = scoreText(task, relativePath, content);
+      const baseScore = scoreText(task, relativePath, content);
+      const score = baseScore > 0 ? baseScore + metadataScore(content) : 0;
 
       if (score > 0) {
         byPath.set(filePath, {
@@ -120,6 +122,28 @@ async function collectCandidates(root: string, task: string): Promise<Candidate[
   }
 
   return [...byPath.values()];
+}
+
+function metadataScore(content: string): number {
+  const metadata = readMetadata(content);
+  const status = metadata.status?.toLowerCase();
+  const confidence = metadata.confidence?.toLowerCase();
+
+  let score = 0;
+  if (status === "confirmed" || status === "accepted" || status === "active") {
+    score += 6;
+  }
+  if (confidence === "confirmed") {
+    score += 4;
+  }
+  if (status === "deprecated" || status === "archived") {
+    score -= 4;
+  }
+  if (status === "conflicting" || confidence === "conflicting") {
+    score -= 2;
+  }
+
+  return score;
 }
 
 function selectCandidates(candidates: Candidate[], maxFiles: number): Candidate[] {

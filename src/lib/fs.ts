@@ -1,5 +1,5 @@
 import { constants } from "node:fs";
-import { access, copyFile, mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
+import { access, copyFile, mkdir, readdir, readFile, rename, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 export interface CopyResult {
@@ -23,6 +23,11 @@ export async function readText(filePath: string): Promise<string> {
 export async function writeText(filePath: string, content: string): Promise<void> {
   await mkdir(path.dirname(filePath), { recursive: true });
   await writeFile(filePath, content, "utf8");
+}
+
+export async function moveFile(source: string, target: string): Promise<void> {
+  await mkdir(path.dirname(target), { recursive: true });
+  await rename(source, target);
 }
 
 export async function copyTree(source: string, target: string, force: boolean): Promise<CopyResult> {

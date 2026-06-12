@@ -16,3 +16,9 @@ For this repository:
 - Tests live in `test/`.
 
 When changing the CLI, keep `pmg init`, `pmg status`, `pmg doctor`, and `pmg context build` understandable to a new maintainer reading only this repo.
+
+Memory lifecycle commands now exist for the MVP:
+
+- `pmg memory propose`
+- `pmg memory promote`
+- `pmg memory archive`

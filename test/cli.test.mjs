@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -83,4 +83,78 @@ test("pmg context build includes task-relevant memory", async () => {
   assert.match(stdout, /PMG Context Bundle/);
   assert.match(stdout, /security\.md/);
   assert.match(stdout, /auth tokens/);
+});
+
+test("pmg memory propose and promote preserve an audit record", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-memory-"));
+
+  await runPmg(["init", target]);
+  const propose = await runPmg([
+    "memory",
+    "propose",
+    "--path",
+    target,
+    "--title",
+    "Login token handling",
+    "--domain",
+    "security",
+    "--observation",
+    "Login pages must avoid leaking auth tokens.",
+    "--knowledge",
+    "Authentication UI must not log raw auth tokens.",
+    "--evidence",
+    "Security review."
+  ]);
+
+  assert.match(propose.stdout, /Created memory proposal/);
+
+  const promote = await runPmg([
+    "memory",
+    "promote",
+    "login-token-handling",
+    "--path",
+    target,
+    "--target",
+    "security",
+    "--reason",
+    "Confirmed by security review.",
+    "--reviewer",
+    "test"
+  ]);
+
+  assert.match(promote.stdout, /Promoted memory proposal/);
+  assert.match(
+    await readFile(path.join(target, ".pmg", "memory", "security.md"), "utf8"),
+    /Authentication UI must not log raw auth tokens/
+  );
+  const promotedFiles = await readdir(path.join(target, ".pmg", "memory", "archive", "promoted"));
+  const promotedFile = promotedFiles.find((file) => file.endsWith("login-token-handling.md"));
+
+  assert.ok(promotedFile);
+  assert.match(await readFile(path.join(target, ".pmg", "memory", "archive", "promoted", promotedFile), "utf8"), /Status: promoted/);
+});
+
+test("pmg doctor reports broken registry references", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "registry", "memory-index.json"),
+    JSON.stringify({
+      version: 1,
+      memory: [
+        {
+          path: ".pmg/memory/missing.md",
+          domain: "missing",
+          status: "confirmed"
+        }
+      ]
+    }),
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Blocking issues found/);
+  assert.match(stdout, /referenced file does not exist: \.pmg\/memory\/missing\.md/);
 });
