@@ -17,6 +17,7 @@
 - stricter promotion and archive validation
 - memory status validation
 - conflict template support
+- local-state ignore rules and shared-asset promotion boundaries
 
 ## 0.3 Governance Reviews
 

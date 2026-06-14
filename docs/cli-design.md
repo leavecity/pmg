@@ -21,3 +21,5 @@ The CLI should be boring, deterministic, and easy to test.
 - `pmg spec create`
 
 Commands should avoid hidden global state. All meaningful state should live in the repository.
+
+Commands that create or update PMG files should follow the local-state model documented in [local-state-model.md](local-state-model.md): PMG local state is ignored by the host repository by default, while shared PMG assets require explicit promotion.
