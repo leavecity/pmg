@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -30,6 +30,35 @@ test("pmg init creates the default PMG layout", async () => {
   assert.match(await readFile(path.join(target, "AGENTS.md"), "utf8"), /Project Memory Governance/);
   assert.match(await readFile(path.join(target, ".pmg", "constitution.md"), "utf8"), /Memory lifecycle/);
   assert.match(await readFile(path.join(target, ".pmg", "registry", "skills.json"), "utf8"), /memory-curator/);
+});
+
+test("pmg init writes PMG local state rules to git info exclude", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-init-git-"));
+
+  await mkdir(path.join(target, ".git", "info"), { recursive: true });
+  await writeFile(path.join(target, ".gitignore"), "node_modules/\n", "utf8");
+
+  const { stdout } = await runPmg(["init", target]);
+
+  assert.match(stdout, /Updated local Git ignore rules/);
+  assert.match(await readFile(path.join(target, ".git", "info", "exclude"), "utf8"), /\.pmg\//);
+  assert.match(await readFile(path.join(target, ".git", "info", "exclude"), "utf8"), /PMG\.md/);
+  assert.equal(await readFile(path.join(target, ".gitignore"), "utf8"), "node_modules/\n");
+});
+
+test("pmg init does not duplicate PMG local state ignore rules", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-init-git-idempotent-"));
+
+  await mkdir(path.join(target, ".git", "info"), { recursive: true });
+
+  await runPmg(["init", target]);
+  const second = await runPmg(["init", target]);
+
+  const exclude = await readFile(path.join(target, ".git", "info", "exclude"), "utf8");
+
+  assert.match(second.stdout, /Local Git ignore rules already include PMG local state/);
+  assert.equal(exclude.match(/^\.pmg\/$/gm)?.length, 1);
+  assert.equal(exclude.match(/^PMG\.md$/gm)?.length, 1);
 });
 
 test("pmg status reports ready after init", async () => {
@@ -157,4 +186,16 @@ test("pmg doctor reports broken registry references", async () => {
 
   assert.match(stdout, /Blocking issues found/);
   assert.match(stdout, /referenced file does not exist: \.pmg\/memory\/missing\.md/);
+});
+
+test("pmg doctor warns when PMG local state is not ignored by host git", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-git-ignore-"));
+
+  await runPmg(["init", target]);
+  await mkdir(path.join(target, ".git", "info"), { recursive: true });
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Warnings:/);
+  assert.match(stdout, /\.git\/info\/exclude: PMG local state is not ignored by host Git repository/);
 });

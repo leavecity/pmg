@@ -68,6 +68,8 @@ Initialize PMG in a repository:
 node dist/cli.js init /path/to/repo
 ```
 
+When the target is inside a Git repository, `pmg init` writes PMG local-state rules to `.git/info/exclude`. It does not modify the tracked root `.gitignore` by default.
+
 Check PMG health:
 
 ```bash

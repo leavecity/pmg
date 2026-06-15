@@ -2,6 +2,7 @@ import { createStatusReport } from "./status.js";
 import { parseArgs, getStringFlag } from "../lib/args.js";
 import path from "node:path";
 import { listMarkdownFiles, pathExists, readText } from "../lib/fs.js";
+import { getPmgLocalStateIgnoreStatus } from "../lib/git.js";
 import { readMetadata } from "../lib/markdown.js";
 
 interface DoctorFinding {
@@ -52,8 +53,23 @@ export async function createDoctorFindings(root: string): Promise<DoctorFinding[
   await checkJsonRegistry(root, ".pmg/registry/memory-index.json", "memory", findings);
   await checkJsonRegistry(root, ".pmg/registry/skills.json", "skills", findings);
   await checkMemoryStatus(root, findings);
+  await checkPmgLocalStateIgnored(root, findings);
 
   return findings;
+}
+
+async function checkPmgLocalStateIgnored(root: string, findings: DoctorFinding[]): Promise<void> {
+  const status = await getPmgLocalStateIgnoreStatus(root);
+
+  if (!status.repository || status.missingRules.length === 0) {
+    return;
+  }
+
+  findings.push({
+    severity: "warning",
+    path: path.relative(root, status.repository.infoExcludePath).split(path.sep).join("/"),
+    message: "PMG local state is not ignored by host Git repository"
+  });
 }
 
 async function checkJsonRegistry(

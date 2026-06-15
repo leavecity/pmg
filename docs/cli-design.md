@@ -4,7 +4,7 @@ The CLI should be boring, deterministic, and easy to test.
 
 ## Implemented
 
-- `pmg init`: copy the default PMG files into a repository
+- `pmg init`: copy the default PMG files into a repository and maintain local Git ignore rules when possible
 - `pmg status`: report whether required PMG files exist
 - `pmg scan`: discover project guidance, specs, ADRs, and debt markers without writing memory
 - `pmg doctor`: run basic health checks
