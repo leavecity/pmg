@@ -19,8 +19,26 @@ export async function memoryCommand(rawArgs: string[], cwd: string): Promise<voi
     case "archive":
       await archiveMemory(rest, cwd);
       return;
+    case "project":
+      await projectMemory(rest, cwd);
+      return;
     default:
-      throw new Error("Usage: pmg memory <propose|promote|archive>");
+      throw new Error("Usage: pmg memory <propose|promote|archive|project>");
+  }
+}
+
+async function projectMemory(rawArgs: string[], cwd: string): Promise<void> {
+  const [subcommand, ...rest] = rawArgs;
+
+  switch (subcommand) {
+    case "propose":
+      await proposeProjectMemory(rest, cwd);
+      return;
+    case "apply":
+      await applyProjectMemory(rest, cwd);
+      return;
+    default:
+      throw new Error("Usage: pmg memory project <propose|apply>");
   }
 }
 
@@ -143,6 +161,81 @@ async function archiveMemory(rawArgs: string[], cwd: string): Promise<void> {
   console.log(`Archived memory file to ${toPosixPath(path.relative(root, archivePath))}`);
 }
 
+async function proposeProjectMemory(rawArgs: string[], cwd: string): Promise<void> {
+  const args = parseArgs(rawArgs);
+  const root = resolveRoot(args, cwd);
+  await assertPmg(root);
+
+  const title = requireFlag(args, "title");
+  const summary = requireFlag(args, "summary");
+  const content = requireFlag(args, "content");
+  const source = getStringFlag(args, "source") ?? "user or agent proposed project memory refresh";
+  const evidence = getStringFlag(args, "evidence") ?? "Pending.";
+  const date = today();
+  const fileName = `${date}-${slugify(title)}.md`;
+  let outputPath = path.join(root, ".pmg", "memory", "proposals", fileName);
+  let suffix = 2;
+
+  while (await pathExists(outputPath)) {
+    outputPath = path.join(root, ".pmg", "memory", "proposals", `${date}-${slugify(title)}-${suffix}.md`);
+    suffix += 1;
+  }
+
+  await writeText(outputPath, renderProjectMemoryProposal({
+    title,
+    summary,
+    source,
+    created: new Date().toISOString(),
+    content,
+    evidence
+  }));
+
+  console.log(`Created project memory update proposal: ${toPosixPath(path.relative(root, outputPath))}`);
+}
+
+async function applyProjectMemory(rawArgs: string[], cwd: string): Promise<void> {
+  const args = parseArgs(rawArgs);
+  const root = resolveRoot(args, cwd);
+  await assertPmg(root);
+
+  const selector = args.positional[0];
+  if (!selector) {
+    throw new Error("pmg memory project apply requires a proposal path or id");
+  }
+
+  const proposalPath = await resolveMemoryFile(root, selector, "proposals");
+  const projectPath = path.join(root, ".pmg", "memory", "project.md");
+  const reviewer = getStringFlag(args, "reviewer") ?? "unspecified";
+  const reason = getStringFlag(args, "reason") ?? "Project memory update approved.";
+  const proposalContent = await readText(proposalPath);
+  const proposedProjectMemory = extractSectionUntil(proposalContent, "Proposed Project Memory", "Evidence");
+  const applied = new Date().toISOString();
+
+  if (!(await pathExists(projectPath))) {
+    throw new Error("Missing .pmg/memory/project.md. Run pmg init first.");
+  }
+
+  const snapshotPath = await uniqueArchivePath(root, "project-snapshots", `${today()}-project.md`);
+  await writeText(snapshotPath, `${await readText(projectPath)}`);
+  await writeText(projectPath, `${proposedProjectMemory.trimEnd()}\n`);
+
+  const appliedContent = upsertMetadata(proposalContent, {
+    status: "applied",
+    applied,
+    "applied-to": ".pmg/memory/project.md",
+    reviewer,
+    reason
+  });
+  await writeText(proposalPath, appliedContent);
+
+  const auditPath = await uniqueArchivePath(root, "project-updates", path.basename(proposalPath));
+  await moveFile(proposalPath, auditPath);
+
+  console.log("Applied project memory update to .pmg/memory/project.md");
+  console.log(`Saved previous project memory snapshot to ${toPosixPath(path.relative(root, snapshotPath))}`);
+  console.log(`Moved project memory update audit record to ${toPosixPath(path.relative(root, auditPath))}`);
+}
+
 function resolveRoot(args: ReturnType<typeof parseArgs>, cwd: string): string {
   return path.resolve(cwd, getStringFlag(args, "path") ?? ".");
 }
@@ -192,6 +285,39 @@ ${input.knowledge}
 ${input.evidence}
 
 ## Promotion Recommendation
+
+Pending review.
+`;
+}
+
+function renderProjectMemoryProposal(input: {
+  title: string;
+  summary: string;
+  source: string;
+  created: string;
+  content: string;
+  evidence: string;
+}): string {
+  return `# Project Memory Update Proposal: ${input.title}
+
+Status: pending
+Target: .pmg/memory/project.md
+Source: ${input.source}
+Created: ${input.created}
+
+## Summary
+
+${input.summary}
+
+## Proposed Project Memory
+
+${input.content.trim()}
+
+## Evidence
+
+${input.evidence}
+
+## Apply Recommendation
 
 Pending review.
 `;
@@ -283,6 +409,23 @@ function extractSection(content: string, heading: string): string {
   const rest = content.slice(start);
   const nextHeading = rest.search(/^##\s+/m);
   const section = nextHeading >= 0 ? rest.slice(0, nextHeading) : rest;
+  return section.trim() || "Pending.";
+}
+
+function extractSectionUntil(content: string, heading: string, nextHeading: string): string {
+  const startPattern = new RegExp(`^## ${escapeRegExp(heading)}\\s*$`, "im");
+  const startMatch = content.match(startPattern);
+
+  if (!startMatch || startMatch.index === undefined) {
+    return "Pending.";
+  }
+
+  const start = startMatch.index + startMatch[0].length;
+  const rest = content.slice(start);
+  const endPattern = new RegExp(`^## ${escapeRegExp(nextHeading)}\\s*$`, "im");
+  const endMatch = rest.match(endPattern);
+  const section = endMatch?.index === undefined ? rest : rest.slice(0, endMatch.index);
+
   return section.trim() || "Pending.";
 }
 

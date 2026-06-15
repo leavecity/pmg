@@ -42,6 +42,8 @@ pmg context build
 pmg memory propose
 pmg memory promote
 pmg memory archive
+pmg memory project propose
+pmg memory project apply
 ```
 
 Planned commands:
@@ -106,6 +108,21 @@ node dist/cli.js memory promote 2026-06-12-login-token-handling \
   --path /path/to/repo \
   --target security \
   --reason "Confirmed by security review."
+```
+
+Propose and apply a reviewed refresh of the current project memory view:
+
+```bash
+node dist/cli.js memory project propose \
+  --path /path/to/repo \
+  --title "Refresh project purpose" \
+  --summary "Update the current project purpose after product positioning work." \
+  --content "$(cat project-memory.md)"
+
+node dist/cli.js memory project apply 2026-06-16-refresh-project-purpose \
+  --path /path/to/repo \
+  --reviewer maintainer \
+  --reason "Approved after review."
 ```
 
 ## Design principles

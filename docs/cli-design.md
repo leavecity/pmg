@@ -12,6 +12,8 @@ The CLI should be boring, deterministic, and easy to test.
 - `pmg memory propose`: create a pending durable-memory candidate
 - `pmg memory promote`: append an approved proposal to a target memory file and keep an audit record
 - `pmg memory archive`: retire a memory file or proposal with an archive reason
+- `pmg memory project propose`: create a pending replacement for the current project memory view
+- `pmg memory project apply`: replace `.pmg/memory/project.md` after confirmation, keeping a previous snapshot and an audit record
 
 ## Planned
 

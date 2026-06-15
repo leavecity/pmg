@@ -16,9 +16,11 @@ Usage:
   pmg memory propose --title <title> --observation <text>
   pmg memory promote <proposal> [--target <domain-or-path>]
   pmg memory archive <path-or-id> [--reason <reason>]
+  pmg memory project propose --title <title> --summary <text> --content <markdown>
+  pmg memory project apply <proposal> [--reviewer <name>]
 
 MVP command status:
-  implemented: init, status, scan, doctor, context build, memory propose/promote/archive
+  implemented: init, status, scan, doctor, context build, memory propose/promote/archive, memory project propose/apply
   planned: memory add, spec create, adr create, review create
 `;
 

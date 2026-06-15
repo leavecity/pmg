@@ -163,6 +163,87 @@ test("pmg memory propose and promote preserve an audit record", async () => {
   assert.match(await readFile(path.join(target, ".pmg", "memory", "archive", "promoted", promotedFile), "utf8"), /Status: promoted/);
 });
 
+test("pmg memory project propose creates a pending current-view update without changing project memory", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-project-propose-"));
+
+  await runPmg(["init", target]);
+  const before = await readFile(path.join(target, ".pmg", "memory", "project.md"), "utf8");
+  const propose = await runPmg([
+    "memory",
+    "project",
+    "propose",
+    "--path",
+    target,
+    "--title",
+    "Clarify PMG purpose",
+    "--summary",
+    "Update the current project purpose after product positioning work.",
+    "--content",
+    "# Project Memory: Project\n\nStatus: confirmed\n\n## Purpose\n\nPMG governs agent memory.\n"
+  ]);
+
+  assert.match(propose.stdout, /Created project memory update proposal/);
+  assert.equal(await readFile(path.join(target, ".pmg", "memory", "project.md"), "utf8"), before);
+
+  const proposals = await readdir(path.join(target, ".pmg", "memory", "proposals"));
+  const proposalFile = proposals.find((file) => file.endsWith("clarify-pmg-purpose.md"));
+
+  assert.ok(proposalFile);
+  assert.match(
+    await readFile(path.join(target, ".pmg", "memory", "proposals", proposalFile), "utf8"),
+    /Target: \.pmg\/memory\/project\.md/
+  );
+});
+
+test("pmg memory project apply replaces current project memory after confirmation and keeps audit records", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-project-apply-"));
+
+  await runPmg(["init", target]);
+  const propose = await runPmg([
+    "memory",
+    "project",
+    "propose",
+    "--path",
+    target,
+    "--title",
+    "Clarify PMG purpose",
+    "--summary",
+    "Update the current project purpose after product positioning work.",
+    "--content",
+    "# Project Memory: Project\n\nStatus: confirmed\n\n## Purpose\n\nPMG governs agent memory.\n"
+  ]);
+  const proposalId = propose.stdout.match(/proposals\/(.+\.md)/)?.[1]?.replace(/\.md$/, "");
+
+  assert.ok(proposalId);
+
+  const apply = await runPmg([
+    "memory",
+    "project",
+    "apply",
+    proposalId,
+    "--path",
+    target,
+    "--reviewer",
+    "test",
+    "--reason",
+    "Approved after review."
+  ]);
+
+  assert.match(apply.stdout, /Applied project memory update to \.pmg\/memory\/project\.md/);
+  assert.match(apply.stdout, /Saved previous project memory snapshot/);
+  assert.match(await readFile(path.join(target, ".pmg", "memory", "project.md"), "utf8"), /PMG governs agent memory/);
+
+  const snapshots = await readdir(path.join(target, ".pmg", "memory", "archive", "project-snapshots"));
+  const updates = await readdir(path.join(target, ".pmg", "memory", "archive", "project-updates"));
+
+  assert.equal(snapshots.length, 1);
+  assert.equal(updates.length, 1);
+  assert.match(
+    await readFile(path.join(target, ".pmg", "memory", "archive", "project-updates", updates[0]), "utf8"),
+    /Status: applied/
+  );
+});
+
 test("pmg doctor reports broken registry references", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-"));
 

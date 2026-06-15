@@ -56,6 +56,8 @@ Early PMG iterations should not automatically rewrite the current project memory
 
 Instead, PMG should generate a proposed change that the user or agent can review. Only after confirmation should the change be written into the current project memory view, such as `.pmg/memory/project.md`.
 
+The MVP supports this with `pmg memory project propose` and `pmg memory project apply`. Applying a proposal replaces `.pmg/memory/project.md`, stores the previous version under `.pmg/memory/archive/project-snapshots/`, and moves the applied proposal to `.pmg/memory/archive/project-updates/`.
+
 This keeps the memory governance process visible while the tool and conventions are still maturing.
 
 Future mature modes may support automatic rewriting, but automatic mode should be opt-in.
