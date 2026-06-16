@@ -43,7 +43,6 @@ export async function doctorCommand(rawArgs: string[], cwd: string): Promise<voi
   console.log("");
   console.log("Next checks planned for future releases:");
   console.log("- stale memory detection");
-  console.log("- conflicting memory detection");
   console.log("- template drift detection");
 }
 
@@ -133,6 +132,34 @@ async function checkMemoryStatus(root: string, findings: DoctorFinding[]): Promi
         severity: "warning",
         path: relativePath,
         message: "memory file has no Status metadata"
+      });
+      continue;
+    }
+
+    const status = metadata.status.toLowerCase();
+
+    if (status === "deprecated") {
+      findings.push({
+        severity: "warning",
+        path: relativePath,
+        message: "deprecated memory should be archived or replaced in current context"
+      });
+    }
+
+    if (status === "conflicting") {
+      findings.push({
+        severity: "warning",
+        path: relativePath,
+        message: "conflicting memory must be resolved before agents rely on it"
+      });
+    }
+
+    const supersededBy = metadata["superseded-by"];
+    if (supersededBy && !(await pathExists(path.join(root, supersededBy)))) {
+      findings.push({
+        severity: "warning",
+        path: relativePath,
+        message: `superseded memory points to missing replacement: ${supersededBy}`
       });
     }
   }

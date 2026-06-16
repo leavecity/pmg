@@ -269,6 +269,29 @@ test("pmg doctor reports broken registry references", async () => {
   assert.match(stdout, /referenced file does not exist: \.pmg\/memory\/missing\.md/);
 });
 
+test("pmg doctor warns about memory cleanup candidates", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-memory-cleanup-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "deprecated-rule.md"),
+    "# Deprecated Rule\n\nStatus: deprecated\n\nSuperseded-By: .pmg/memory/missing-new-rule.md\n\nOld guidance.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "conflict.md"),
+    "# Conflict\n\nStatus: conflicting\n\nTwo rules disagree.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Warnings:/);
+  assert.match(stdout, /\.pmg\/memory\/deprecated-rule\.md: deprecated memory should be archived or replaced in current context/);
+  assert.match(stdout, /\.pmg\/memory\/deprecated-rule\.md: superseded memory points to missing replacement: \.pmg\/memory\/missing-new-rule\.md/);
+  assert.match(stdout, /\.pmg\/memory\/conflict\.md: conflicting memory must be resolved before agents rely on it/);
+});
+
 test("pmg doctor warns when PMG local state is not ignored by host git", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-git-ignore-"));
 

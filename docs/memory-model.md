@@ -25,3 +25,9 @@ Durable memory should be promoted only when policy allows it. One-off observatio
 `pmg memory promote` appends the durable knowledge candidate to a target memory file and moves the proposal to `.pmg/memory/archive/promoted/` as an audit record.
 
 `pmg memory archive` marks a memory file or proposal as archived and moves it to `.pmg/memory/archive/archived/`.
+
+`pmg doctor` warns about memory hygiene issues that can confuse agents:
+
+- deprecated memory that still appears in active memory files
+- conflicting memory that needs explicit resolution
+- `Superseded-By` references that point to missing replacement files

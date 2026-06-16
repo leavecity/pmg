@@ -80,6 +80,8 @@ node dist/cli.js scan /path/to/repo
 node dist/cli.js doctor /path/to/repo
 ```
 
+`pmg doctor` also reports early memory hygiene warnings, including deprecated memory, conflicting memory, and broken `Superseded-By` references.
+
 Build a task-specific context bundle:
 
 ```bash
