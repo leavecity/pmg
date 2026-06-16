@@ -165,6 +165,38 @@ test("pmg context build excludes deprecated and archived memory by default", asy
   assert.doesNotMatch(stdout, /Archived auth token guidance/);
 });
 
+test("pmg context build excludes memory archive audit records by default", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-archive-"));
+
+  await runPmg(["init", target]);
+  await mkdir(path.join(target, ".pmg", "memory", "archive", "promoted"), { recursive: true });
+  await writeFile(
+    path.join(target, ".pmg", "memory", "current-auth.md"),
+    "# Current Auth\n\nStatus: confirmed\n\nUse the current auth token handling rule.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "archive", "promoted", "old-auth.md"),
+    "# Memory Proposal: Old Auth\n\nStatus: promoted\n\nOld archived auth token audit content should not guide implementation.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg([
+    "context",
+    "build",
+    "--path",
+    target,
+    "--task",
+    "implement auth token handling",
+    "--max-files",
+    "12"
+  ]);
+
+  assert.match(stdout, /current-auth\.md/);
+  assert.doesNotMatch(stdout, /archive\/promoted\/old-auth\.md/);
+  assert.doesNotMatch(stdout, /Old archived auth token audit content/);
+});
+
 test("pmg memory propose and promote preserve an audit record", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-memory-"));
 

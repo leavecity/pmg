@@ -107,7 +107,7 @@ async function collectCandidates(root: string, task: string): Promise<Candidate[
       const content = await readText(filePath);
       const relativePath = toPosixPath(path.relative(root, filePath));
 
-      if (shouldExcludeFromDefaultContext(content)) {
+      if (shouldExcludePathFromDefaultContext(relativePath) || shouldExcludeFromDefaultContext(content)) {
         continue;
       }
 
@@ -127,6 +127,10 @@ async function collectCandidates(root: string, task: string): Promise<Candidate[
   }
 
   return [...byPath.values()];
+}
+
+function shouldExcludePathFromDefaultContext(relativePath: string): boolean {
+  return relativePath.startsWith(".pmg/memory/archive/");
 }
 
 function shouldExcludeFromDefaultContext(content: string): boolean {
