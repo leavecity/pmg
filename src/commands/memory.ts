@@ -53,8 +53,11 @@ async function cleanupMemory(rawArgs: string[], cwd: string): Promise<void> {
     case "propose":
       await proposeMemoryCleanup(rest, cwd);
       return;
+    case "apply":
+      await applyMemoryCleanup(rest, cwd);
+      return;
     default:
-      throw new Error("Usage: pmg memory cleanup propose");
+      throw new Error("Usage: pmg memory cleanup <propose|apply>");
   }
 }
 
@@ -163,16 +166,7 @@ async function archiveMemory(rawArgs: string[], cwd: string): Promise<void> {
 
   const reason = getStringFlag(args, "reason") ?? "Archived by PMG.";
   const sourcePath = await resolveMemoryFile(root, selector);
-  const content = await readText(sourcePath);
-  const archivedContent = `${upsertMetadata(content, {
-    status: "archived",
-    archived: new Date().toISOString(),
-    "archive-reason": reason
-  }).trim()}\n`;
-  await writeText(sourcePath, archivedContent);
-
-  const archivePath = await uniqueArchivePath(root, "archived", path.basename(sourcePath));
-  await moveFile(sourcePath, archivePath);
+  const archivePath = await archiveMemoryPath(root, sourcePath, reason);
 
   console.log(`Archived memory file to ${toPosixPath(path.relative(root, archivePath))}`);
 }
@@ -281,6 +275,70 @@ async function proposeMemoryCleanup(rawArgs: string[], cwd: string): Promise<voi
   }));
 
   console.log(`Created memory cleanup proposal: ${toPosixPath(path.relative(root, outputPath))}`);
+}
+
+async function applyMemoryCleanup(rawArgs: string[], cwd: string): Promise<void> {
+  const args = parseArgs(rawArgs);
+  const root = resolveRoot(args, cwd);
+  await assertPmg(root);
+
+  const selector = args.positional[0];
+  if (!selector) {
+    throw new Error("pmg memory cleanup apply requires a proposal path or id");
+  }
+
+  const proposalPath = await resolveMemoryFile(root, selector, "proposals");
+  const reviewer = getStringFlag(args, "reviewer") ?? "unspecified";
+  const reason = getStringFlag(args, "reason") ?? "Memory cleanup approved.";
+  const proposalContent = await readText(proposalPath);
+  const metadata = readMetadata(proposalContent);
+
+  if (metadata.type !== "memory-cleanup") {
+    throw new Error("pmg memory cleanup apply requires a memory-cleanup proposal");
+  }
+
+  const findings = parseCleanupFindings(proposalContent);
+  const deprecatedPaths = unique(findings
+    .filter((finding) => finding.message === "deprecated memory should be archived or replaced in current context")
+    .map((finding) => finding.path));
+  const manualPaths = unique(findings
+    .filter((finding) => !deprecatedPaths.includes(finding.path))
+    .map((finding) => finding.path));
+  const archivedPaths: string[] = [];
+
+  for (const deprecatedPath of deprecatedPaths) {
+    const absolutePath = path.join(root, deprecatedPath);
+    if (!(await pathExists(absolutePath))) {
+      manualPaths.push(deprecatedPath);
+      continue;
+    }
+
+    await archiveMemoryPath(root, absolutePath, reason);
+    archivedPaths.push(deprecatedPath);
+  }
+
+  const appliedContent = upsertMetadata(proposalContent, {
+    status: "applied",
+    applied: new Date().toISOString(),
+    reviewer,
+    reason
+  });
+  await writeText(proposalPath, appliedContent);
+
+  const auditPath = await uniqueArchivePath(root, "cleanup-applied", path.basename(proposalPath));
+  await moveFile(proposalPath, auditPath);
+
+  console.log("Applied memory cleanup proposal.");
+  if (archivedPaths.length === 0) {
+    console.log("No automatically applicable cleanup actions found.");
+  }
+  for (const archivedPath of archivedPaths) {
+    console.log(`Archived deprecated memory: ${archivedPath}`);
+  }
+  for (const manualPath of unique(manualPaths)) {
+    console.log(`Manual cleanup still required: ${manualPath}`);
+  }
+  console.log(`Moved cleanup audit record to ${toPosixPath(path.relative(root, auditPath))}`);
 }
 
 function resolveRoot(args: ReturnType<typeof parseArgs>, cwd: string): string {
@@ -401,6 +459,41 @@ Pending review.
 
 function isMemoryCleanupFinding(finding: DoctorFinding): boolean {
   return finding.severity === "warning" && finding.path.startsWith(".pmg/memory/");
+}
+
+async function archiveMemoryPath(root: string, sourcePath: string, reason: string): Promise<string> {
+  const content = await readText(sourcePath);
+  const archivedContent = `${upsertMetadata(content, {
+    status: "archived",
+    archived: new Date().toISOString(),
+    "archive-reason": reason
+  }).trim()}\n`;
+  await writeText(sourcePath, archivedContent);
+
+  const archivePath = await uniqueArchivePath(root, "archived", path.basename(sourcePath));
+  await moveFile(sourcePath, archivePath);
+  return archivePath;
+}
+
+function parseCleanupFindings(content: string): Array<{ path: string; message: string }> {
+  const findings = extractSection(content, "Findings");
+
+  if (findings === "Pending.") {
+    return [];
+  }
+
+  return findings
+    .split(/\r?\n/)
+    .map((line) => line.match(/^-\s+(.+?):\s+(.+)$/))
+    .filter((match): match is RegExpMatchArray => match !== null)
+    .map((match) => ({
+      path: match[1],
+      message: match[2]
+    }));
+}
+
+function unique(input: string[]): string[] {
+  return [...new Set(input)];
 }
 
 function inferTargetFromProposal(proposalPath: string, content: string): string {

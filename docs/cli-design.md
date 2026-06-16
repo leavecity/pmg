@@ -15,6 +15,7 @@ The CLI should be boring, deterministic, and easy to test.
 - `pmg memory project propose`: create a pending replacement for the current project memory view
 - `pmg memory project apply`: replace `.pmg/memory/project.md` after confirmation, keeping a previous snapshot and an audit record
 - `pmg memory cleanup propose`: create a pending cleanup proposal from memory hygiene warnings without modifying memory files
+- `pmg memory cleanup apply`: apply reviewed cleanup proposals conservatively, archiving deprecated memory while leaving conflicts for manual resolution
 
 ## Planned
 

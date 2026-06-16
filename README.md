@@ -45,6 +45,7 @@ pmg memory archive
 pmg memory project propose
 pmg memory project apply
 pmg memory cleanup propose
+pmg memory cleanup apply
 ```
 
 Planned commands:
@@ -88,6 +89,17 @@ Create a reviewable cleanup proposal from those warnings:
 ```bash
 node dist/cli.js memory cleanup propose --path /path/to/repo
 ```
+
+Apply reviewed cleanup actions:
+
+```bash
+node dist/cli.js memory cleanup apply 2026-06-16-memory-cleanup \
+  --path /path/to/repo \
+  --reviewer maintainer \
+  --reason "Approved cleanup."
+```
+
+Cleanup apply is intentionally conservative: it can archive deprecated memory, but conflicting memory still requires manual resolution.
 
 Build a task-specific context bundle:
 

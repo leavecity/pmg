@@ -337,6 +337,81 @@ test("pmg memory cleanup propose does not create a proposal when there are no cl
   assert.equal(proposals.filter((file) => file.endsWith(".md")).length, 0);
 });
 
+test("pmg memory cleanup apply archives deprecated memory and leaves conflicting memory for review", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-cleanup-apply-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "deprecated-rule.md"),
+    "# Deprecated Rule\n\nStatus: deprecated\n\nOld guidance.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "conflict.md"),
+    "# Conflict\n\nStatus: conflicting\n\nTwo rules disagree.\n",
+    "utf8"
+  );
+
+  const propose = await runPmg(["memory", "cleanup", "propose", "--path", target]);
+  const proposalId = propose.stdout.match(/proposals\/(.+\.md)/)?.[1]?.replace(/\.md$/, "");
+
+  assert.ok(proposalId);
+
+  const apply = await runPmg([
+    "memory",
+    "cleanup",
+    "apply",
+    proposalId,
+    "--path",
+    target,
+    "--reviewer",
+    "test",
+    "--reason",
+    "Approved cleanup."
+  ]);
+
+  assert.match(apply.stdout, /Applied memory cleanup proposal/);
+  assert.match(apply.stdout, /Archived deprecated memory: \.pmg\/memory\/deprecated-rule\.md/);
+  assert.match(apply.stdout, /Manual cleanup still required: \.pmg\/memory\/conflict\.md/);
+  await assert.rejects(readFile(path.join(target, ".pmg", "memory", "deprecated-rule.md"), "utf8"), /ENOENT/);
+  assert.match(await readFile(path.join(target, ".pmg", "memory", "conflict.md"), "utf8"), /Status: conflicting/);
+
+  const archived = await readdir(path.join(target, ".pmg", "memory", "archive", "archived"));
+  const cleanupAudits = await readdir(path.join(target, ".pmg", "memory", "archive", "cleanup-applied"));
+
+  assert.ok(archived.find((file) => file.endsWith("deprecated-rule.md")));
+  assert.equal(cleanupAudits.length, 1);
+  assert.match(
+    await readFile(path.join(target, ".pmg", "memory", "archive", "cleanup-applied", cleanupAudits[0]), "utf8"),
+    /Status: applied/
+  );
+});
+
+test("pmg memory cleanup apply keeps conflict-only proposals as audit records", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-cleanup-apply-conflict-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "conflict.md"),
+    "# Conflict\n\nStatus: conflicting\n\nTwo rules disagree.\n",
+    "utf8"
+  );
+
+  const propose = await runPmg(["memory", "cleanup", "propose", "--path", target]);
+  const proposalId = propose.stdout.match(/proposals\/(.+\.md)/)?.[1]?.replace(/\.md$/, "");
+
+  assert.ok(proposalId);
+
+  const apply = await runPmg(["memory", "cleanup", "apply", proposalId, "--path", target]);
+
+  assert.match(apply.stdout, /No automatically applicable cleanup actions found/);
+  assert.match(await readFile(path.join(target, ".pmg", "memory", "conflict.md"), "utf8"), /Status: conflicting/);
+
+  const cleanupAudits = await readdir(path.join(target, ".pmg", "memory", "archive", "cleanup-applied"));
+
+  assert.equal(cleanupAudits.length, 1);
+});
+
 test("pmg doctor warns when PMG local state is not ignored by host git", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-git-ignore-"));
 
