@@ -20,3 +20,5 @@ Then include only task-relevant:
 - skill guidance
 
 Avoid loading unrelated memory because it increases token use and can confuse agents.
+
+Exclude memory marked `Status: deprecated` or `Status: archived` from default implementation context. Keep it available for audit, cleanup, and historical analysis only.

@@ -32,6 +32,19 @@ test("pmg init creates the default PMG layout", async () => {
   assert.match(await readFile(path.join(target, ".pmg", "registry", "skills.json"), "utf8"), /memory-curator/);
 });
 
+test("pmg init writes operational memory governance instructions", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-init-instructions-"));
+
+  await runPmg(["init", target]);
+
+  const agents = await readFile(path.join(target, "AGENTS.md"), "utf8");
+
+  assert.match(agents, /pmg context build --task "<task>"/);
+  assert.match(agents, /pmg doctor/);
+  assert.match(agents, /pmg memory cleanup propose/);
+  assert.match(agents, /deprecated or archived memory should not guide implementation/i);
+});
+
 test("pmg init writes PMG local state rules to git info exclude", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-init-git-"));
 
