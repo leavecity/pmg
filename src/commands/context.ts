@@ -130,7 +130,10 @@ async function collectCandidates(root: string, task: string): Promise<Candidate[
 }
 
 function shouldExcludePathFromDefaultContext(relativePath: string): boolean {
-  return relativePath.startsWith(".pmg/memory/archive/");
+  return (
+    relativePath.startsWith(".pmg/memory/archive/") ||
+    relativePath.startsWith(".pmg/memory/proposals/")
+  );
 }
 
 function shouldExcludeFromDefaultContext(content: string): boolean {
@@ -186,6 +189,7 @@ function renderContextBundle(
   lines.push("");
   lines.push("- Treat confirmed project memory as durable guidance.");
   lines.push("- Deprecated and archived memory is excluded from default context bundles.");
+  lines.push("- Pending proposal files and archive audit records are excluded from default context bundles.");
   lines.push("- Treat inferred, experimental, and conflicting memory according to its status.");
   lines.push("- Do not promote new long-term memory unless the user approves it or the PMG policy allows it.");
   lines.push("- Prefer task-relevant context over loading the entire repository memory.");

@@ -21,4 +21,4 @@ Then include only task-relevant:
 
 Avoid loading unrelated memory because it increases token use and can confuse agents.
 
-Exclude memory marked `Status: deprecated` or `Status: archived` from default implementation context. Also exclude files under `.pmg/memory/archive/`; keep them available for audit, cleanup, and historical analysis only.
+Exclude memory marked `Status: deprecated` or `Status: archived` from default implementation context. Also exclude files under `.pmg/memory/proposals/` and `.pmg/memory/archive/`; keep them available for review, cleanup, audit, and historical analysis only.
