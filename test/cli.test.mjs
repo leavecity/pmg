@@ -228,6 +228,37 @@ test("pmg context build excludes pending memory proposals by default", async () 
   assert.doesNotMatch(stdout, /Unapproved auth token proposal/);
 });
 
+test("pmg context build excludes pending memory files by default", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-pending-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "current-auth.md"),
+    "# Current Auth\n\nStatus: confirmed\n\nUse the current auth token handling rule.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "unconfirmed-auth.md"),
+    "# Unconfirmed Auth\n\nStatus: pending\n\nPending auth token memory should not guide implementation.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg([
+    "context",
+    "build",
+    "--path",
+    target,
+    "--task",
+    "implement auth token handling",
+    "--max-files",
+    "12"
+  ]);
+
+  assert.match(stdout, /current-auth\.md/);
+  assert.doesNotMatch(stdout, /unconfirmed-auth\.md/);
+  assert.doesNotMatch(stdout, /Pending auth token memory/);
+});
+
 test("pmg memory propose and promote preserve an audit record", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-memory-"));
 

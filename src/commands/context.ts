@@ -107,7 +107,7 @@ async function collectCandidates(root: string, task: string): Promise<Candidate[
       const content = await readText(filePath);
       const relativePath = toPosixPath(path.relative(root, filePath));
 
-      if (shouldExcludePathFromDefaultContext(relativePath) || shouldExcludeFromDefaultContext(content)) {
+      if (shouldExcludePathFromDefaultContext(relativePath) || shouldExcludeFromDefaultContext(relativePath, content)) {
         continue;
       }
 
@@ -136,11 +136,15 @@ function shouldExcludePathFromDefaultContext(relativePath: string): boolean {
   );
 }
 
-function shouldExcludeFromDefaultContext(content: string): boolean {
+function shouldExcludeFromDefaultContext(relativePath: string, content: string): boolean {
   const metadata = readMetadata(content);
   const status = metadata.status?.toLowerCase();
 
-  return status === "deprecated" || status === "archived";
+  if (status === "deprecated" || status === "archived") {
+    return true;
+  }
+
+  return relativePath.startsWith(".pmg/memory/") && status === "pending";
 }
 
 function metadataScore(content: string): number {
@@ -188,6 +192,7 @@ function renderContextBundle(
   lines.push("## Use Rules");
   lines.push("");
   lines.push("- Treat confirmed project memory as durable guidance.");
+  lines.push("- Pending memory files are excluded from default context bundles.");
   lines.push("- Deprecated and archived memory is excluded from default context bundles.");
   lines.push("- Pending proposal files and archive audit records are excluded from default context bundles.");
   lines.push("- Treat inferred, experimental, and conflicting memory according to its status.");
