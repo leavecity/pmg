@@ -46,6 +46,8 @@ pmg memory project propose
 pmg memory project apply
 pmg memory cleanup propose
 pmg memory cleanup apply
+pmg memory conflict propose
+pmg memory conflict apply
 ```
 
 Planned commands:
@@ -100,6 +102,30 @@ node dist/cli.js memory cleanup apply 2026-06-16-memory-cleanup \
 ```
 
 Cleanup apply is intentionally conservative: it can archive deprecated memory, but conflicting memory still requires manual resolution.
+
+Create a reviewable conflict resolution proposal:
+
+```bash
+node dist/cli.js memory conflict propose \
+  --path /path/to/repo \
+  --title "Resolve token storage guidance" \
+  --source .pmg/memory/auth-conflict.md \
+  --target security \
+  --summary "Resolve contradictory token storage guidance." \
+  --resolution "Authentication memory must forbid storing raw auth tokens." \
+  --evidence "Security review chose the stricter rule."
+```
+
+Apply a reviewed conflict resolution:
+
+```bash
+node dist/cli.js memory conflict apply 2026-06-16-resolve-token-storage-guidance \
+  --path /path/to/repo \
+  --reviewer maintainer \
+  --reason "Approved conflict resolution."
+```
+
+Conflict apply writes the resolved guidance into the target memory file, archives the conflicting source, and keeps the applied proposal as an audit record.
 
 Build a task-specific context bundle:
 

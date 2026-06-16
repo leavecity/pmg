@@ -16,7 +16,7 @@
 - richer memory proposal workflow
 - stricter promotion and archive validation
 - memory status validation
-- conflict template support
+- conflict resolution proposal and apply workflow
 - local-state ignore rules and shared-asset promotion boundaries
 
 ## 0.3 Governance Reviews

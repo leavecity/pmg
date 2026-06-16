@@ -378,6 +378,48 @@ test("pmg memory propose and promote preserve an audit record", async () => {
   assert.match(await readFile(path.join(target, ".pmg", "memory", "archive", "promoted", promotedFile), "utf8"), /Status: promoted/);
 });
 
+test("pmg memory promote marks an existing pending target as confirmed", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-memory-promote-visible-"));
+
+  await runPmg(["init", target]);
+  const propose = await runPmg([
+    "memory",
+    "propose",
+    "--path",
+    target,
+    "--title",
+    "Zephyr session rule",
+    "--domain",
+    "security",
+    "--observation",
+    "Zephyr sessions must not leak raw tokens.",
+    "--knowledge",
+    "Zephyr sessions must keep raw tokens out of logs."
+  ]);
+  const proposalId = propose.stdout.match(/proposals\/(.+\.md)/)?.[1]?.replace(/\.md$/, "");
+
+  assert.ok(proposalId);
+
+  await runPmg(["memory", "promote", proposalId, "--path", target, "--target", "security"]);
+
+  const securityMemory = await readFile(path.join(target, ".pmg", "memory", "security.md"), "utf8");
+  assert.match(securityMemory, /Status: confirmed/);
+
+  const { stdout } = await runPmg([
+    "context",
+    "build",
+    "--path",
+    target,
+    "--task",
+    "implement zephyr session security",
+    "--max-files",
+    "12"
+  ]);
+
+  assert.match(stdout, /\.pmg\/memory\/security\.md/);
+  assert.match(stdout, /Zephyr sessions must keep raw tokens out of logs/);
+});
+
 test("pmg memory archive refuses files outside the project root", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-archive-outside-"));
   const outsideDirectory = await mkdtemp(path.join(os.tmpdir(), "pmg-outside-archive-"));
@@ -499,6 +541,117 @@ test("pmg memory project apply replaces current project memory after confirmatio
   assert.equal(updates.length, 1);
   assert.match(
     await readFile(path.join(target, ".pmg", "memory", "archive", "project-updates", updates[0]), "utf8"),
+    /Status: applied/
+  );
+});
+
+test("pmg memory conflict propose creates a pending resolution without changing memory", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-conflict-propose-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "auth-conflict.md"),
+    "# Auth Conflict\n\nStatus: conflicting\n\nOne source says token storage is allowed, another forbids it.\n",
+    "utf8"
+  );
+  const beforeSource = await readFile(path.join(target, ".pmg", "memory", "auth-conflict.md"), "utf8");
+  const beforeTarget = await readFile(path.join(target, ".pmg", "memory", "security.md"), "utf8");
+
+  const propose = await runPmg([
+    "memory",
+    "conflict",
+    "propose",
+    "--path",
+    target,
+    "--title",
+    "Resolve auth token storage",
+    "--source",
+    ".pmg/memory/auth-conflict.md",
+    "--target",
+    "security",
+    "--summary",
+    "Resolve contradictory token storage guidance.",
+    "--resolution",
+    "Authentication memory must forbid storing raw auth tokens.",
+    "--evidence",
+    "Security review chose the stricter rule."
+  ]);
+
+  assert.match(propose.stdout, /Created memory conflict resolution proposal/);
+  assert.equal(await readFile(path.join(target, ".pmg", "memory", "auth-conflict.md"), "utf8"), beforeSource);
+  assert.equal(await readFile(path.join(target, ".pmg", "memory", "security.md"), "utf8"), beforeTarget);
+
+  const proposals = await readdir(path.join(target, ".pmg", "memory", "proposals"));
+  const proposalFile = proposals.find((file) => file.endsWith("resolve-auth-token-storage.md"));
+
+  assert.ok(proposalFile);
+  const proposal = await readFile(path.join(target, ".pmg", "memory", "proposals", proposalFile), "utf8");
+
+  assert.match(proposal, /Type: conflict-resolution/);
+  assert.match(proposal, /Source: \.pmg\/memory\/auth-conflict\.md/);
+  assert.match(proposal, /Target: \.pmg\/memory\/security\.md/);
+  assert.match(proposal, /Authentication memory must forbid storing raw auth tokens/);
+});
+
+test("pmg memory conflict apply writes resolved memory and archives the conflicting source", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-conflict-apply-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "auth-conflict.md"),
+    "# Auth Conflict\n\nStatus: conflicting\n\nOne source says token storage is allowed, another forbids it.\n",
+    "utf8"
+  );
+
+  const propose = await runPmg([
+    "memory",
+    "conflict",
+    "propose",
+    "--path",
+    target,
+    "--title",
+    "Resolve auth token storage",
+    "--source",
+    ".pmg/memory/auth-conflict.md",
+    "--target",
+    "security",
+    "--summary",
+    "Resolve contradictory token storage guidance.",
+    "--resolution",
+    "Authentication memory must forbid storing raw auth tokens.",
+    "--evidence",
+    "Security review chose the stricter rule."
+  ]);
+  const proposalId = propose.stdout.match(/proposals\/(.+\.md)/)?.[1]?.replace(/\.md$/, "");
+
+  assert.ok(proposalId);
+
+  const apply = await runPmg([
+    "memory",
+    "conflict",
+    "apply",
+    proposalId,
+    "--path",
+    target,
+    "--reviewer",
+    "test",
+    "--reason",
+    "Approved conflict resolution."
+  ]);
+
+  assert.match(apply.stdout, /Applied memory conflict resolution/);
+  assert.match(apply.stdout, /Archived conflicting memory: \.pmg\/memory\/auth-conflict\.md/);
+  assert.match(await readFile(path.join(target, ".pmg", "memory", "security.md"), "utf8"), /Status: confirmed/);
+  assert.match(await readFile(path.join(target, ".pmg", "memory", "security.md"), "utf8"), /Authentication memory must forbid storing raw auth tokens/);
+  await assert.rejects(readFile(path.join(target, ".pmg", "memory", "auth-conflict.md"), "utf8"), /ENOENT/);
+
+  const archived = await readdir(path.join(target, ".pmg", "memory", "archive", "archived"));
+  const conflictAudits = await readdir(path.join(target, ".pmg", "memory", "archive", "conflict-resolutions"));
+
+  assert.ok(archived.find((file) => file.endsWith("auth-conflict.md")));
+  assert.equal(conflictAudits.length, 1);
+  assert.match(
+    await readFile(path.join(target, ".pmg", "memory", "archive", "conflict-resolutions", conflictAudits[0]), "utf8"),
     /Status: applied/
   );
 });

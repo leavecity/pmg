@@ -8,3 +8,5 @@ When memory conflicts:
 4. Prefer newer confirmed memory only when it intentionally supersedes older guidance.
 5. Ask a maintainer when policy does not resolve the conflict.
 6. Archive superseded guidance instead of deleting history.
+
+Use `pmg memory conflict propose` to prepare a reviewed resolution. Use `pmg memory conflict apply` only after the resolution is approved.

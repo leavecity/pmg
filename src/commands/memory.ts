@@ -26,8 +26,11 @@ export async function memoryCommand(rawArgs: string[], cwd: string): Promise<voi
     case "cleanup":
       await cleanupMemory(rest, cwd);
       return;
+    case "conflict":
+      await conflictMemory(rest, cwd);
+      return;
     default:
-      throw new Error("Usage: pmg memory <propose|promote|archive|project|cleanup>");
+      throw new Error("Usage: pmg memory <propose|promote|archive|project|cleanup|conflict>");
   }
 }
 
@@ -58,6 +61,21 @@ async function cleanupMemory(rawArgs: string[], cwd: string): Promise<void> {
       return;
     default:
       throw new Error("Usage: pmg memory cleanup <propose|apply>");
+  }
+}
+
+async function conflictMemory(rawArgs: string[], cwd: string): Promise<void> {
+  const [subcommand, ...rest] = rawArgs;
+
+  switch (subcommand) {
+    case "propose":
+      await proposeMemoryConflictResolution(rest, cwd);
+      return;
+    case "apply":
+      await applyMemoryConflictResolution(rest, cwd);
+      return;
+    default:
+      throw new Error("Usage: pmg memory conflict <propose|apply>");
   }
 }
 
@@ -129,7 +147,7 @@ async function promoteMemory(rawArgs: string[], cwd: string): Promise<void> {
     await writeText(targetPath, `# Project Memory: ${titleCase(path.basename(targetPath, ".md"))}\n\nStatus: confirmed\n`);
   }
 
-  const targetContent = await readText(targetPath);
+  const targetContent = markMemoryTargetConfirmed(await readText(targetPath));
   await writeText(targetPath, appendPromotedMemory(targetContent, {
     title,
     proposalPath: toPosixPath(path.relative(root, proposalPath)),
@@ -341,6 +359,109 @@ async function applyMemoryCleanup(rawArgs: string[], cwd: string): Promise<void>
   console.log(`Moved cleanup audit record to ${toPosixPath(path.relative(root, auditPath))}`);
 }
 
+async function proposeMemoryConflictResolution(rawArgs: string[], cwd: string): Promise<void> {
+  const args = parseArgs(rawArgs);
+  const root = resolveRoot(args, cwd);
+  await assertPmg(root);
+
+  const title = requireFlag(args, "title");
+  const source = requireFlag(args, "source");
+  const target = requireFlag(args, "target");
+  const summary = requireFlag(args, "summary");
+  const resolution = requireFlag(args, "resolution");
+  const evidence = getStringFlag(args, "evidence") ?? "Pending.";
+  const sourcePath = await resolveMemoryFile(root, source);
+  const targetPath = resolveMemoryTarget(root, target);
+  const date = today();
+  let outputPath = path.join(root, ".pmg", "memory", "proposals", `${date}-${slugify(title)}.md`);
+  let suffix = 2;
+
+  while (await pathExists(outputPath)) {
+    outputPath = path.join(root, ".pmg", "memory", "proposals", `${date}-${slugify(title)}-${suffix}.md`);
+    suffix += 1;
+  }
+
+  await writeText(outputPath, renderMemoryConflictResolutionProposal({
+    title,
+    source: toPosixPath(path.relative(root, sourcePath)),
+    target: toPosixPath(path.relative(root, targetPath)),
+    created: new Date().toISOString(),
+    summary,
+    resolution,
+    evidence
+  }));
+
+  console.log(`Created memory conflict resolution proposal: ${toPosixPath(path.relative(root, outputPath))}`);
+}
+
+async function applyMemoryConflictResolution(rawArgs: string[], cwd: string): Promise<void> {
+  const args = parseArgs(rawArgs);
+  const root = resolveRoot(args, cwd);
+  await assertPmg(root);
+
+  const selector = args.positional[0];
+  if (!selector) {
+    throw new Error("pmg memory conflict apply requires a proposal path or id");
+  }
+
+  const proposalPath = await resolveMemoryFile(root, selector, "proposals");
+  const proposalContent = await readText(proposalPath);
+  const metadata = readMetadata(proposalContent);
+
+  if (metadata.type !== "conflict-resolution") {
+    throw new Error("pmg memory conflict apply requires a conflict-resolution proposal");
+  }
+
+  const source = metadata.source;
+  const target = metadata.target;
+  if (!source || !target) {
+    throw new Error("Conflict resolution proposal must include Source and Target metadata");
+  }
+
+  const sourcePath = await resolveMemoryFile(root, source);
+  const targetPath = resolveMemoryTarget(root, target);
+  const title = getTitle(proposalContent).replace(/^Memory Conflict Resolution Proposal:\s*/i, "");
+  const reviewer = getStringFlag(args, "reviewer") ?? "unspecified";
+  const reason = getStringFlag(args, "reason") ?? "Memory conflict resolution approved.";
+  const applied = new Date().toISOString();
+  const sourceRelativePath = toPosixPath(path.relative(root, sourcePath));
+
+  if (!(await pathExists(targetPath))) {
+    await writeText(targetPath, `# Project Memory: ${titleCase(path.basename(targetPath, ".md"))}\n\nStatus: confirmed\n`);
+  }
+
+  const targetContent = markMemoryTargetConfirmed(await readText(targetPath));
+  await writeText(targetPath, appendConflictResolutionMemory(targetContent, {
+    title,
+    proposalPath: toPosixPath(path.relative(root, proposalPath)),
+    resolvedSource: sourceRelativePath,
+    applied,
+    reason,
+    reviewer,
+    resolution: extractSection(proposalContent, "Resolution Memory"),
+    evidence: extractSection(proposalContent, "Evidence")
+  }));
+
+  await archiveMemoryPath(root, sourcePath, reason);
+  const appliedContent = upsertMetadata(proposalContent, {
+    status: "applied",
+    applied,
+    "applied-to": toPosixPath(path.relative(root, targetPath)),
+    "resolved-source": sourceRelativePath,
+    reviewer,
+    reason
+  });
+  await writeText(proposalPath, appliedContent);
+
+  const auditPath = await uniqueArchivePath(root, "conflict-resolutions", path.basename(proposalPath));
+  await moveFile(proposalPath, auditPath);
+
+  console.log("Applied memory conflict resolution.");
+  console.log(`Archived conflicting memory: ${sourceRelativePath}`);
+  console.log(`Updated resolved memory: ${toPosixPath(path.relative(root, targetPath))}`);
+  console.log(`Moved conflict resolution audit record to ${toPosixPath(path.relative(root, auditPath))}`);
+}
+
 function resolveRoot(args: ReturnType<typeof parseArgs>, cwd: string): string {
   return path.resolve(cwd, getStringFlag(args, "path") ?? ".");
 }
@@ -450,6 +571,41 @@ ${findings}
 ## Recommended Actions
 
 Review each finding and decide whether to archive, replace, resolve, or keep the referenced memory.
+
+## Apply Recommendation
+
+Pending review.
+`;
+}
+
+function renderMemoryConflictResolutionProposal(input: {
+  title: string;
+  source: string;
+  target: string;
+  created: string;
+  summary: string;
+  resolution: string;
+  evidence: string;
+}): string {
+  return `# Memory Conflict Resolution Proposal: ${input.title}
+
+Status: pending
+Type: conflict-resolution
+Source: ${input.source}
+Target: ${input.target}
+Created: ${input.created}
+
+## Summary
+
+${input.summary}
+
+## Resolution Memory
+
+${input.resolution}
+
+## Evidence
+
+${input.evidence}
 
 ## Apply Recommendation
 
@@ -585,6 +741,48 @@ ${candidate}
 
 ${evidence}
 `;
+}
+
+function appendConflictResolutionMemory(targetContent: string, input: {
+  title: string;
+  proposalPath: string;
+  resolvedSource: string;
+  applied: string;
+  reason: string;
+  reviewer: string;
+  resolution: string;
+  evidence: string;
+}): string {
+  const trimmedTarget = targetContent.trimEnd();
+
+  return `${trimmedTarget}
+
+## Conflict Resolution: ${input.title}
+
+Status: confirmed
+Source: ${input.proposalPath}
+Resolved-Source: ${input.resolvedSource}
+Applied: ${input.applied}
+Reviewer: ${input.reviewer}
+Reason: ${input.reason}
+
+${input.resolution}
+
+### Evidence
+
+${input.evidence}
+`;
+}
+
+function markMemoryTargetConfirmed(content: string): string {
+  const metadata = readMetadata(content);
+  const status = metadata.status?.toLowerCase();
+
+  if (!status || status === "pending" || status === "conflicting") {
+    return upsertMetadata(content, { status: "confirmed" });
+  }
+
+  return content;
 }
 
 function extractSection(content: string, heading: string): string {

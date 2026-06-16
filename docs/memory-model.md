@@ -35,3 +35,7 @@ Durable memory should be promoted only when policy allows it. One-off observatio
 `pmg memory cleanup propose` turns those hygiene warnings into a pending cleanup proposal under `.pmg/memory/proposals/`. It does not archive, replace, or rewrite memory by itself.
 
 `pmg memory cleanup apply` applies reviewed cleanup proposals conservatively. The MVP can archive deprecated memory and keeps an audit record under `.pmg/memory/archive/cleanup-applied/`. Conflicting memory is not resolved automatically.
+
+`pmg memory conflict propose` creates a pending conflict-resolution proposal. The proposal names the conflicting source, the target memory file, the proposed resolved guidance, and evidence.
+
+`pmg memory conflict apply` applies a reviewed conflict-resolution proposal. It writes the resolved guidance into the target memory file, marks the target as confirmed when needed, archives the conflicting source, and keeps an audit record under `.pmg/memory/archive/conflict-resolutions/`.
