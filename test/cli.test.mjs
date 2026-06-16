@@ -114,6 +114,44 @@ test("pmg context build includes task-relevant memory", async () => {
   assert.match(stdout, /auth tokens/);
 });
 
+test("pmg context build excludes deprecated and archived memory by default", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-hygiene-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "current-auth.md"),
+    "# Current Auth\n\nStatus: confirmed\n\nLogin pages must avoid leaking auth tokens.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "old-auth.md"),
+    "# Old Auth\n\nStatus: deprecated\n\nDeprecated auth token guidance should not be used.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "archived-auth.md"),
+    "# Archived Auth\n\nStatus: archived\n\nArchived auth token guidance should not be used.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg([
+    "context",
+    "build",
+    "--path",
+    target,
+    "--task",
+    "implement auth token handling",
+    "--max-files",
+    "12"
+  ]);
+
+  assert.match(stdout, /current-auth\.md/);
+  assert.doesNotMatch(stdout, /old-auth\.md/);
+  assert.doesNotMatch(stdout, /archived-auth\.md/);
+  assert.doesNotMatch(stdout, /Deprecated auth token guidance/);
+  assert.doesNotMatch(stdout, /Archived auth token guidance/);
+});
+
 test("pmg memory propose and promote preserve an audit record", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-memory-"));
 

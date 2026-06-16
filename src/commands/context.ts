@@ -106,6 +106,11 @@ async function collectCandidates(root: string, task: string): Promise<Candidate[
 
       const content = await readText(filePath);
       const relativePath = toPosixPath(path.relative(root, filePath));
+
+      if (shouldExcludeFromDefaultContext(content)) {
+        continue;
+      }
+
       const baseScore = scoreText(task, relativePath, content);
       const score = baseScore > 0 ? baseScore + metadataScore(content) : 0;
 
@@ -122,6 +127,13 @@ async function collectCandidates(root: string, task: string): Promise<Candidate[
   }
 
   return [...byPath.values()];
+}
+
+function shouldExcludeFromDefaultContext(content: string): boolean {
+  const metadata = readMetadata(content);
+  const status = metadata.status?.toLowerCase();
+
+  return status === "deprecated" || status === "archived";
 }
 
 function metadataScore(content: string): number {
@@ -169,7 +181,8 @@ function renderContextBundle(
   lines.push("## Use Rules");
   lines.push("");
   lines.push("- Treat confirmed project memory as durable guidance.");
-  lines.push("- Treat inferred, experimental, deprecated, and conflicting memory according to its status.");
+  lines.push("- Deprecated and archived memory is excluded from default context bundles.");
+  lines.push("- Treat inferred, experimental, and conflicting memory according to its status.");
   lines.push("- Do not promote new long-term memory unless the user approves it or the PMG policy allows it.");
   lines.push("- Prefer task-relevant context over loading the entire repository memory.");
   lines.push("");
