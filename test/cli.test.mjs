@@ -292,6 +292,51 @@ test("pmg doctor warns about memory cleanup candidates", async () => {
   assert.match(stdout, /\.pmg\/memory\/conflict\.md: conflicting memory must be resolved before agents rely on it/);
 });
 
+test("pmg memory cleanup propose creates a pending cleanup proposal from doctor findings", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-cleanup-propose-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "deprecated-rule.md"),
+    "# Deprecated Rule\n\nStatus: deprecated\n\nSuperseded-By: .pmg/memory/missing-new-rule.md\n\nOld guidance.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "conflict.md"),
+    "# Conflict\n\nStatus: conflicting\n\nTwo rules disagree.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["memory", "cleanup", "propose", "--path", target]);
+
+  assert.match(stdout, /Created memory cleanup proposal/);
+
+  const proposals = await readdir(path.join(target, ".pmg", "memory", "proposals"));
+  const proposalFile = proposals.find((file) => file.endsWith("memory-cleanup.md"));
+
+  assert.ok(proposalFile);
+
+  const proposal = await readFile(path.join(target, ".pmg", "memory", "proposals", proposalFile), "utf8");
+
+  assert.match(proposal, /Type: memory-cleanup/);
+  assert.match(proposal, /\.pmg\/memory\/deprecated-rule\.md/);
+  assert.match(proposal, /deprecated memory should be archived or replaced in current context/);
+  assert.match(proposal, /\.pmg\/memory\/conflict\.md/);
+  assert.match(proposal, /conflicting memory must be resolved before agents rely on it/);
+});
+
+test("pmg memory cleanup propose does not create a proposal when there are no cleanup findings", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-cleanup-empty-"));
+
+  await runPmg(["init", target]);
+
+  const { stdout } = await runPmg(["memory", "cleanup", "propose", "--path", target]);
+  const proposals = await readdir(path.join(target, ".pmg", "memory", "proposals"));
+
+  assert.match(stdout, /No memory cleanup findings found/);
+  assert.equal(proposals.filter((file) => file.endsWith(".md")).length, 0);
+});
+
 test("pmg doctor warns when PMG local state is not ignored by host git", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-git-ignore-"));
 

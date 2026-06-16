@@ -44,6 +44,7 @@ pmg memory promote
 pmg memory archive
 pmg memory project propose
 pmg memory project apply
+pmg memory cleanup propose
 ```
 
 Planned commands:
@@ -81,6 +82,12 @@ node dist/cli.js doctor /path/to/repo
 ```
 
 `pmg doctor` also reports early memory hygiene warnings, including deprecated memory, conflicting memory, and broken `Superseded-By` references.
+
+Create a reviewable cleanup proposal from those warnings:
+
+```bash
+node dist/cli.js memory cleanup propose --path /path/to/repo
+```
 
 Build a task-specific context bundle:
 

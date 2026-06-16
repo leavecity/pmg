@@ -5,7 +5,7 @@ import { listMarkdownFiles, pathExists, readText } from "../lib/fs.js";
 import { getPmgLocalStateIgnoreStatus } from "../lib/git.js";
 import { readMetadata } from "../lib/markdown.js";
 
-interface DoctorFinding {
+export interface DoctorFinding {
   severity: "error" | "warning";
   path: string;
   message: string;

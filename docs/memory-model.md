@@ -31,3 +31,5 @@ Durable memory should be promoted only when policy allows it. One-off observatio
 - deprecated memory that still appears in active memory files
 - conflicting memory that needs explicit resolution
 - `Superseded-By` references that point to missing replacement files
+
+`pmg memory cleanup propose` turns those hygiene warnings into a pending cleanup proposal under `.pmg/memory/proposals/`. It does not archive, replace, or rewrite memory by itself.

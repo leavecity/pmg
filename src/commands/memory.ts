@@ -1,4 +1,5 @@
 import path from "node:path";
+import { createDoctorFindings, type DoctorFinding } from "./doctor.js";
 import { getStringFlag, parseArgs } from "../lib/args.js";
 import { listMarkdownFiles, moveFile, pathExists, readText, toPosixPath, writeText } from "../lib/fs.js";
 import { getTitle, readMetadata, upsertMetadata } from "../lib/markdown.js";
@@ -22,8 +23,11 @@ export async function memoryCommand(rawArgs: string[], cwd: string): Promise<voi
     case "project":
       await projectMemory(rest, cwd);
       return;
+    case "cleanup":
+      await cleanupMemory(rest, cwd);
+      return;
     default:
-      throw new Error("Usage: pmg memory <propose|promote|archive|project>");
+      throw new Error("Usage: pmg memory <propose|promote|archive|project|cleanup>");
   }
 }
 
@@ -39,6 +43,18 @@ async function projectMemory(rawArgs: string[], cwd: string): Promise<void> {
       return;
     default:
       throw new Error("Usage: pmg memory project <propose|apply>");
+  }
+}
+
+async function cleanupMemory(rawArgs: string[], cwd: string): Promise<void> {
+  const [subcommand, ...rest] = rawArgs;
+
+  switch (subcommand) {
+    case "propose":
+      await proposeMemoryCleanup(rest, cwd);
+      return;
+    default:
+      throw new Error("Usage: pmg memory cleanup propose");
   }
 }
 
@@ -236,6 +252,37 @@ async function applyProjectMemory(rawArgs: string[], cwd: string): Promise<void>
   console.log(`Moved project memory update audit record to ${toPosixPath(path.relative(root, auditPath))}`);
 }
 
+async function proposeMemoryCleanup(rawArgs: string[], cwd: string): Promise<void> {
+  const args = parseArgs(rawArgs);
+  const root = resolveRoot(args, cwd);
+  await assertPmg(root);
+
+  const findings = (await createDoctorFindings(root)).filter(isMemoryCleanupFinding);
+
+  if (findings.length === 0) {
+    console.log("No memory cleanup findings found.");
+    return;
+  }
+
+  const title = getStringFlag(args, "title") ?? "Memory Cleanup";
+  const date = today();
+  let outputPath = path.join(root, ".pmg", "memory", "proposals", `${date}-${slugify(title)}.md`);
+  let suffix = 2;
+
+  while (await pathExists(outputPath)) {
+    outputPath = path.join(root, ".pmg", "memory", "proposals", `${date}-${slugify(title)}-${suffix}.md`);
+    suffix += 1;
+  }
+
+  await writeText(outputPath, renderMemoryCleanupProposal({
+    title,
+    created: new Date().toISOString(),
+    findings
+  }));
+
+  console.log(`Created memory cleanup proposal: ${toPosixPath(path.relative(root, outputPath))}`);
+}
+
 function resolveRoot(args: ReturnType<typeof parseArgs>, cwd: string): string {
   return path.resolve(cwd, getStringFlag(args, "path") ?? ".");
 }
@@ -321,6 +368,39 @@ ${input.evidence}
 
 Pending review.
 `;
+}
+
+function renderMemoryCleanupProposal(input: {
+  title: string;
+  created: string;
+  findings: DoctorFinding[];
+}): string {
+  const findings = input.findings
+    .map((finding) => `- ${finding.path}: ${finding.message}`)
+    .join("\n");
+
+  return `# Memory Cleanup Proposal: ${input.title}
+
+Status: pending
+Type: memory-cleanup
+Created: ${input.created}
+
+## Findings
+
+${findings}
+
+## Recommended Actions
+
+Review each finding and decide whether to archive, replace, resolve, or keep the referenced memory.
+
+## Apply Recommendation
+
+Pending review.
+`;
+}
+
+function isMemoryCleanupFinding(finding: DoctorFinding): boolean {
+  return finding.severity === "warning" && finding.path.startsWith(".pmg/memory/");
 }
 
 function inferTargetFromProposal(proposalPath: string, content: string): string {
