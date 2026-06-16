@@ -13,6 +13,17 @@ interface Candidate {
   reason: string;
 }
 
+interface ExcludedSource {
+  path: string;
+  reason: string;
+  score: number;
+}
+
+interface CandidateCollection {
+  candidates: Candidate[];
+  excludedSources: ExcludedSource[];
+}
+
 const ALWAYS_INCLUDE = [
   { path: "AGENTS.md", score: 100, reason: "agent entrypoint" },
   { path: "PMG.md", score: 95, reason: "PMG entrypoint" },
@@ -29,6 +40,8 @@ const SEARCH_DIRS = [
   ".pmg/governance",
   ".pmg/skills"
 ];
+
+const MIN_EXCLUDED_SOURCE_SCORE = 2;
 
 export async function contextCommand(rawArgs: string[], cwd: string): Promise<void> {
   const args = parseArgs(rawArgs);
@@ -51,7 +64,7 @@ export async function contextCommand(rawArgs: string[], cwd: string): Promise<vo
 
   const maxFiles = getNumberFlag(args, "max-files", 12);
   const maxCharsPerFile = getNumberFlag(args, "max-chars-per-file", 4000);
-  const candidates = await collectCandidates(root, task);
+  const { candidates, excludedSources } = await collectCandidates(root, task);
   const selected = selectCandidates(candidates, maxFiles);
   const bundle = renderContextBundle(root, task, selected, maxCharsPerFile);
   const output = getStringFlag(args, "output");
@@ -65,6 +78,7 @@ export async function contextCommand(rawArgs: string[], cwd: string): Promise<vo
         score: candidate.score,
         reason: candidate.reason
       })),
+      excludedSources,
       content: bundle
     }, null, 2));
     return;
@@ -81,8 +95,9 @@ export async function contextCommand(rawArgs: string[], cwd: string): Promise<vo
   console.log(bundle);
 }
 
-async function collectCandidates(root: string, task: string): Promise<Candidate[]> {
+async function collectCandidates(root: string, task: string): Promise<CandidateCollection> {
   const byPath = new Map<string, Candidate>();
+  const excludedSources: ExcludedSource[] = [];
 
   for (const item of ALWAYS_INCLUDE) {
     const absolutePath = path.join(root, item.path);
@@ -106,12 +121,20 @@ async function collectCandidates(root: string, task: string): Promise<Candidate[
 
       const content = await readText(filePath);
       const relativePath = toPosixPath(path.relative(root, filePath));
+      const baseScore = scoreText(task, relativePath, content);
+      const exclusionReason = defaultContextExclusionReason(relativePath, content);
 
-      if (shouldExcludePathFromDefaultContext(relativePath) || shouldExcludeFromDefaultContext(relativePath, content)) {
+      if (exclusionReason) {
+        if (baseScore >= MIN_EXCLUDED_SOURCE_SCORE) {
+          excludedSources.push({
+            path: relativePath,
+            score: baseScore,
+            reason: exclusionReason
+          });
+        }
         continue;
       }
 
-      const baseScore = scoreText(task, relativePath, content);
       const score = baseScore > 0 ? baseScore + metadataScore(content) : 0;
 
       if (score > 0) {
@@ -126,25 +149,34 @@ async function collectCandidates(root: string, task: string): Promise<Candidate[
     }
   }
 
-  return [...byPath.values()];
+  return {
+    candidates: [...byPath.values()],
+    excludedSources: excludedSources.sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
+  };
 }
 
-function shouldExcludePathFromDefaultContext(relativePath: string): boolean {
-  return (
-    relativePath.startsWith(".pmg/memory/archive/") ||
-    relativePath.startsWith(".pmg/memory/proposals/")
-  );
-}
+function defaultContextExclusionReason(relativePath: string, content: string): string | null {
+  if (relativePath.startsWith(".pmg/memory/proposals/")) {
+    return "pending proposal file is excluded from default context";
+  }
+  if (relativePath.startsWith(".pmg/memory/archive/")) {
+    return "memory archive audit record is excluded from default context";
+  }
 
-function shouldExcludeFromDefaultContext(relativePath: string, content: string): boolean {
   const metadata = readMetadata(content);
   const status = metadata.status?.toLowerCase();
 
-  if (status === "deprecated" || status === "archived") {
-    return true;
+  if (relativePath.startsWith(".pmg/memory/") && status === "pending") {
+    return "pending memory is excluded from default context";
+  }
+  if (status === "deprecated") {
+    return "deprecated memory is excluded from default context";
+  }
+  if (status === "archived") {
+    return "archived memory is excluded from default context";
   }
 
-  return relativePath.startsWith(".pmg/memory/") && status === "pending";
+  return null;
 }
 
 function metadataScore(content: string): number {

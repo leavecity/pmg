@@ -259,6 +259,76 @@ test("pmg context build excludes pending memory files by default", async () => {
   assert.doesNotMatch(stdout, /Pending auth token memory/);
 });
 
+test("pmg context build json explains excluded memory sources", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-excluded-json-"));
+
+  await runPmg(["init", target]);
+  await mkdir(path.join(target, ".pmg", "memory", "archive", "promoted"), { recursive: true });
+  await writeFile(
+    path.join(target, ".pmg", "memory", "current-zephyr.md"),
+    "# Current Zephyr\n\nStatus: confirmed\n\nUse the current zephyr handling rule.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "unconfirmed-zephyr.md"),
+    "# Unconfirmed Zephyr\n\nStatus: pending\n\nPending zephyr memory should not guide implementation.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "old-zephyr.md"),
+    "# Old Zephyr\n\nStatus: deprecated\n\nDeprecated zephyr memory should not guide implementation.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "proposals", "unapproved-zephyr.md"),
+    "# Memory Proposal: Unapproved Zephyr\n\nStatus: pending\n\nUnapproved zephyr proposal should not guide implementation.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "archive", "promoted", "audit-zephyr.md"),
+    "# Memory Proposal: Audit Zephyr\n\nStatus: promoted\n\nArchived zephyr audit content should not guide implementation.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg([
+    "context",
+    "build",
+    "--path",
+    target,
+    "--task",
+    "implement zephyr handling",
+    "--max-files",
+    "12",
+    "--json"
+  ]);
+  const payload = JSON.parse(stdout);
+  const excludedPaths = payload.excludedSources.map((source) => source.path).sort();
+
+  assert.ok(payload.selectedSources.some((source) => source.path === ".pmg/memory/current-zephyr.md"));
+  assert.deepEqual(excludedPaths, [
+    ".pmg/memory/archive/promoted/audit-zephyr.md",
+    ".pmg/memory/old-zephyr.md",
+    ".pmg/memory/proposals/unapproved-zephyr.md",
+    ".pmg/memory/unconfirmed-zephyr.md"
+  ]);
+  assert.equal(
+    payload.excludedSources.find((source) => source.path === ".pmg/memory/unconfirmed-zephyr.md").reason,
+    "pending memory is excluded from default context"
+  );
+  assert.equal(
+    payload.excludedSources.find((source) => source.path === ".pmg/memory/old-zephyr.md").reason,
+    "deprecated memory is excluded from default context"
+  );
+  assert.equal(
+    payload.excludedSources.find((source) => source.path === ".pmg/memory/proposals/unapproved-zephyr.md").reason,
+    "pending proposal file is excluded from default context"
+  );
+  assert.equal(
+    payload.excludedSources.find((source) => source.path === ".pmg/memory/archive/promoted/audit-zephyr.md").reason,
+    "memory archive audit record is excluded from default context"
+  );
+});
+
 test("pmg memory propose and promote preserve an audit record", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-memory-"));
 
