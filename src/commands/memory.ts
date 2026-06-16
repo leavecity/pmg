@@ -502,20 +502,29 @@ function inferTargetFromProposal(proposalPath: string, content: string): string 
 }
 
 function resolveMemoryTarget(root: string, target: string): string {
+  let targetPath: string;
+
   if (target.endsWith(".md") || target.includes("/") || target.includes(path.sep)) {
-    return path.resolve(root, target);
+    targetPath = path.resolve(root, target);
+  } else {
+    targetPath = path.join(root, ".pmg", "memory", `${slugify(target)}.md`);
   }
 
-  return path.join(root, ".pmg", "memory", `${slugify(target)}.md`);
+  assertInsideProjectRoot(root, targetPath, "memory target");
+  return targetPath;
 }
 
 async function resolveMemoryFile(root: string, selector: string, preferredDirectory?: string): Promise<string> {
   const directPath = path.resolve(root, selector);
+  assertInsideProjectRoot(root, directPath, "memory selector");
+
   if (await pathExists(directPath)) {
     return directPath;
   }
 
-  const pmgRelativePath = path.join(root, ".pmg", "memory", selector);
+  const pmgRelativePath = path.resolve(root, ".pmg", "memory", selector);
+  assertInsideProjectRoot(root, pmgRelativePath, "memory selector");
+
   if (await pathExists(pmgRelativePath)) {
     return pmgRelativePath;
   }
@@ -538,6 +547,14 @@ async function resolveMemoryFile(root: string, selector: string, preferredDirect
   }
 
   return matches[0];
+}
+
+function assertInsideProjectRoot(root: string, candidatePath: string, label: string): void {
+  const relativePath = path.relative(root, candidatePath);
+
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    throw new Error(`${label} resolves outside the project root: ${candidatePath}`);
+  }
 }
 
 function appendPromotedMemory(targetContent: string, input: {

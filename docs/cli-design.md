@@ -26,4 +26,6 @@ The CLI should be boring, deterministic, and easy to test.
 
 Commands should avoid hidden global state. All meaningful state should live in the repository.
 
+Commands that accept file selectors or output targets must keep resolved paths inside the target project root. PMG should not read, move, or write arbitrary files outside the repository it is governing.
+
 Commands that create or update PMG files should follow the local-state model documented in [local-state-model.md](local-state-model.md): PMG local state is ignored by the host repository by default, while shared PMG assets require explicit promotion.

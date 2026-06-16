@@ -214,6 +214,50 @@ test("pmg memory propose and promote preserve an audit record", async () => {
   assert.match(await readFile(path.join(target, ".pmg", "memory", "archive", "promoted", promotedFile), "utf8"), /Status: promoted/);
 });
 
+test("pmg memory archive refuses files outside the project root", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-archive-outside-"));
+  const outsideDirectory = await mkdtemp(path.join(os.tmpdir(), "pmg-outside-archive-"));
+  const outsideFile = path.join(outsideDirectory, "outside.md");
+
+  await runPmg(["init", target]);
+  await writeFile(outsideFile, "# Outside\n\nStatus: confirmed\n\nMust stay outside PMG.\n", "utf8");
+
+  await assert.rejects(
+    runPmg(["memory", "archive", outsideFile, "--path", target]),
+    /outside the project root/
+  );
+  assert.match(await readFile(outsideFile, "utf8"), /Must stay outside PMG/);
+});
+
+test("pmg memory promote refuses targets outside the project root", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-promote-outside-"));
+  const outsideDirectory = await mkdtemp(path.join(os.tmpdir(), "pmg-outside-promote-"));
+  const outsideTarget = path.join(outsideDirectory, "outside.md");
+
+  await runPmg(["init", target]);
+  const propose = await runPmg([
+    "memory",
+    "propose",
+    "--path",
+    target,
+    "--title",
+    "Outside write guard",
+    "--observation",
+    "Memory promotion should stay inside the project.",
+    "--knowledge",
+    "Memory commands must not write outside the project root."
+  ]);
+  const proposalId = propose.stdout.match(/proposals\/(.+\.md)/)?.[1]?.replace(/\.md$/, "");
+
+  assert.ok(proposalId);
+
+  await assert.rejects(
+    runPmg(["memory", "promote", proposalId, "--path", target, "--target", outsideTarget]),
+    /outside the project root/
+  );
+  await assert.rejects(readFile(outsideTarget, "utf8"), /ENOENT/);
+});
+
 test("pmg memory project propose creates a pending current-view update without changing project memory", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-project-propose-"));
 
