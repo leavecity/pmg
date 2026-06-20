@@ -829,6 +829,65 @@ test("pmg doctor validates cleanup proposal finding paths", async () => {
   assert.match(stdout, /\.pmg\/memory\/proposals\/bad-cleanup-paths\.md: memory-cleanup finding path does not exist: \.pmg\/memory\/missing\.md/);
 });
 
+test("pmg doctor reports applied or promoted audit records left in proposals", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-proposals-audit-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "proposals", "applied-update.md"),
+    "# Project Memory Update Proposal: Applied\n\nStatus: applied\nTarget: .pmg/memory/project.md\n\n## Proposed Project Memory\n\nApplied content.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "proposals", "promoted-memory.md"),
+    "# Memory Proposal: Promoted\n\nStatus: promoted\n\n## Durable Knowledge Candidate\n\nPromoted content.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Blocking issues found/);
+  assert.match(stdout, /\.pmg\/memory\/proposals\/applied-update\.md: applied proposal audit record must not remain in \.pmg\/memory\/proposals/);
+  assert.match(stdout, /\.pmg\/memory\/proposals\/promoted-memory\.md: promoted proposal audit record must not remain in \.pmg\/memory\/proposals/);
+});
+
+test("pmg doctor reports audit records in the wrong archive directory", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-audit-directories-"));
+
+  await runPmg(["init", target]);
+  await mkdir(path.join(target, ".pmg", "memory", "archive", "archived"), { recursive: true });
+  await mkdir(path.join(target, ".pmg", "memory", "archive", "promoted"), { recursive: true });
+  await mkdir(path.join(target, ".pmg", "memory", "archive", "cleanup-applied"), { recursive: true });
+  await writeFile(
+    path.join(target, ".pmg", "memory", "archive", "archived", "promoted-memory.md"),
+    "# Memory Proposal: Promoted\n\nStatus: promoted\n\n## Durable Knowledge Candidate\n\nPromoted content.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "archive", "promoted", "applied-cleanup.md"),
+    "# Memory Cleanup Proposal: Applied\n\nStatus: applied\nType: memory-cleanup\n\n## Findings\n\n- .pmg/memory/security.md: deprecated memory should be archived or replaced in current context\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "archive", "promoted", "applied-conflict.md"),
+    "# Memory Conflict Resolution Proposal: Applied\n\nStatus: applied\nType: conflict-resolution\n\n## Resolution Memory\n\nResolved content.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "archive", "cleanup-applied", "project-update.md"),
+    "# Project Memory Update Proposal: Applied\n\nStatus: applied\nTarget: .pmg/memory/project.md\n\n## Proposed Project Memory\n\nApplied content.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Blocking issues found/);
+  assert.match(stdout, /\.pmg\/memory\/archive\/archived\/promoted-memory\.md: promoted audit record must be stored under \.pmg\/memory\/archive\/promoted\//);
+  assert.match(stdout, /\.pmg\/memory\/archive\/promoted\/applied-cleanup\.md: applied memory-cleanup audit record must be stored under \.pmg\/memory\/archive\/cleanup-applied\//);
+  assert.match(stdout, /\.pmg\/memory\/archive\/promoted\/applied-conflict\.md: applied conflict-resolution audit record must be stored under \.pmg\/memory\/archive\/conflict-resolutions\//);
+  assert.match(stdout, /\.pmg\/memory\/archive\/cleanup-applied\/project-update\.md: applied project memory update audit record must be stored under \.pmg\/memory\/archive\/project-updates\//);
+});
+
 test("pmg doctor warns about memory cleanup candidates", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-memory-cleanup-"));
 

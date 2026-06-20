@@ -3,7 +3,7 @@ import { parseArgs, getStringFlag, hasFlag } from "../lib/args.js";
 import path from "node:path";
 import { listMarkdownFiles, pathExists, readText } from "../lib/fs.js";
 import { getPmgLocalStateIgnoreStatus } from "../lib/git.js";
-import { readMetadata } from "../lib/markdown.js";
+import { getTitle, readMetadata } from "../lib/markdown.js";
 
 export interface DoctorFinding {
   severity: "error" | "warning";
@@ -94,6 +94,7 @@ export async function createDoctorFindings(root: string): Promise<DoctorFinding[
   await checkJsonRegistry(root, ".pmg/registry/skills.json", "skills", findings);
   await checkMemoryStatus(root, findings);
   await checkMemoryProposalContracts(root, findings);
+  await checkMemoryAuditRecordLocations(root, findings);
   await checkPmgLocalStateIgnored(root, findings);
 
   return findings;
@@ -238,6 +239,94 @@ async function checkMemoryProposalContracts(root: string, findings: DoctorFindin
       await checkMemoryCleanupProposal(root, relativePath, content, findings);
     }
   }
+}
+
+async function checkMemoryAuditRecordLocations(root: string, findings: DoctorFinding[]): Promise<void> {
+  await checkAppliedOrPromotedProposals(root, findings);
+  await checkArchiveAuditDirectories(root, findings);
+}
+
+async function checkAppliedOrPromotedProposals(root: string, findings: DoctorFinding[]): Promise<void> {
+  const proposalsRoot = path.join(root, ".pmg", "memory", "proposals");
+  const files = await listMarkdownFiles(proposalsRoot);
+
+  for (const filePath of files) {
+    const relativePath = path.relative(root, filePath).split(path.sep).join("/");
+    const metadata = readMetadata(await readText(filePath));
+    const status = metadata.status?.toLowerCase();
+
+    if (status === "applied" || status === "promoted") {
+      findings.push({
+        severity: "error",
+        path: relativePath,
+        message: `${status} proposal audit record must not remain in .pmg/memory/proposals`
+      });
+    }
+  }
+}
+
+async function checkArchiveAuditDirectories(root: string, findings: DoctorFinding[]): Promise<void> {
+  const archiveRoot = path.join(root, ".pmg", "memory", "archive");
+  const files = await listMarkdownFiles(archiveRoot);
+
+  for (const filePath of files) {
+    const relativePath = path.relative(root, filePath).split(path.sep).join("/");
+    const content = await readText(filePath);
+    const expected = getExpectedAuditArchiveDirectory(content);
+
+    if (!expected) {
+      continue;
+    }
+
+    if (!relativePath.startsWith(`${expected.directory}/`)) {
+      findings.push({
+        severity: "error",
+        path: relativePath,
+        message: `${expected.label} must be stored under ${expected.directory}/`
+      });
+    }
+  }
+}
+
+function getExpectedAuditArchiveDirectory(content: string): { directory: string; label: string } | undefined {
+  const metadata = readMetadata(content);
+  const status = metadata.status?.toLowerCase();
+  const type = metadata.type?.toLowerCase();
+  const title = getTitle(content);
+
+  if (status === "promoted") {
+    return {
+      directory: ".pmg/memory/archive/promoted",
+      label: "promoted audit record"
+    };
+  }
+
+  if (status !== "applied") {
+    return undefined;
+  }
+
+  if (type === "memory-cleanup") {
+    return {
+      directory: ".pmg/memory/archive/cleanup-applied",
+      label: "applied memory-cleanup audit record"
+    };
+  }
+
+  if (type === "conflict-resolution") {
+    return {
+      directory: ".pmg/memory/archive/conflict-resolutions",
+      label: "applied conflict-resolution audit record"
+    };
+  }
+
+  if (/^Project Memory Update Proposal:/i.test(title)) {
+    return {
+      directory: ".pmg/memory/archive/project-updates",
+      label: "applied project memory update audit record"
+    };
+  }
+
+  return undefined;
 }
 
 async function checkMemoryCleanupProposal(
