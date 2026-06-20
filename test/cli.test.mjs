@@ -45,6 +45,22 @@ test("pmg init writes operational memory governance instructions", async () => {
   assert.match(agents, /deprecated or archived memory should not guide implementation/i);
 });
 
+test("pmg init writes default agent profiles", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-init-profiles-"));
+
+  await runPmg(["init", target]);
+
+  const profiles = ["codex", "claude-code", "cursor", "cline", "roo-code", "windsurf"];
+
+  for (const profile of profiles) {
+    const content = await readFile(path.join(target, ".pmg", "profiles", `${profile}.md`), "utf8");
+
+    assert.match(content, /pmg context build/);
+    assert.match(content, /pmg doctor/);
+    assert.match(content, /pmg memory propose/);
+  }
+});
+
 test("pmg init writes PMG local state rules to git info exclude", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-init-git-"));
 
@@ -327,6 +343,27 @@ test("pmg context build json explains excluded memory sources", async () => {
     payload.excludedSources.find((source) => source.path === ".pmg/memory/archive/promoted/audit-zephyr.md").reason,
     "memory archive audit record is excluded from default context"
   );
+});
+
+test("pmg context build can include task-relevant agent profiles", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-profiles-"));
+
+  await runPmg(["init", target]);
+
+  const { stdout } = await runPmg([
+    "context",
+    "build",
+    "--path",
+    target,
+    "--task",
+    "codex agent profile should run doctor and propose memory",
+    "--max-files",
+    "12"
+  ]);
+
+  assert.match(stdout, /\.pmg\/profiles\/codex\.md/);
+  assert.match(stdout, /Codex/);
+  assert.match(stdout, /pmg doctor/);
 });
 
 test("pmg memory propose and promote preserve an audit record", async () => {

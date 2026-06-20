@@ -38,6 +38,7 @@ const SEARCH_DIRS = [
   ".pmg/adr",
   ".pmg/reviews",
   ".pmg/governance",
+  ".pmg/profiles",
   ".pmg/skills"
 ];
 

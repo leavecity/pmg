@@ -12,6 +12,7 @@ Important rules:
 - `.pmg/specs/` stores planned work.
 - `.pmg/adr/` stores architectural decisions.
 - `.pmg/reviews/` stores review artifacts.
+- `.pmg/profiles/` stores agent-specific operating profiles.
 - `.pmg/governance/` stores lifecycle, confidence, promotion, conflict, and context rules.
 - `.pmg/registry/` stores indexes and skill registry data.
 

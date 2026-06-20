@@ -18,6 +18,8 @@ The MVP uses simple keyword scoring over Markdown files. It always includes stab
 
 Memory files marked `Status: pending`, `Status: deprecated`, or `Status: archived` are excluded from default context bundles. Files under `.pmg/memory/proposals/` and `.pmg/memory/archive/` are also excluded. PMG keeps pending memory, pending proposals, inactive memory, and audit records available for review, cleanup workflows, and historical analysis, but they should not guide normal agent work.
 
+Agent profiles under `.pmg/profiles/` are eligible for task-specific context selection. They should be included only when the task or agent mode makes them relevant.
+
 When `pmg context build --json` is used, the output includes `excludedSources` for task-relevant files that were omitted by default governance rules. Each excluded source includes a path, score, and reason so users can audit why PMG did not include it in the working context.
 
-This is intentionally simple. Future versions may add structured indexes, embeddings, graph traversal, or agent-specific profiles, but none of those are required for v1.
+This is intentionally simple. Future versions may add structured indexes, embeddings, graph traversal, or richer profile matching, but none of those are required for v1.
