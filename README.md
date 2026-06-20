@@ -173,6 +173,12 @@ Explain context selection without emitting the full bundle:
 node dist/cli.js context explain --path /path/to/repo --task "implement login page" --json
 ```
 
+Temporarily filter optional source types:
+
+```bash
+node dist/cli.js context explain --path /path/to/repo --task "implement login page" --no-reviews --no-specs --json
+```
+
 Write the bundle to a file:
 
 ```bash

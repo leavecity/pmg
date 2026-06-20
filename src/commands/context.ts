@@ -24,6 +24,11 @@ interface CandidateCollection {
   excludedSources: ExcludedSource[];
 }
 
+interface ContextFilters {
+  reviews: boolean;
+  specs: boolean;
+}
+
 const ALWAYS_INCLUDE = [
   { path: "AGENTS.md", score: 100, reason: "agent entrypoint" },
   { path: "PMG.md", score: 95, reason: "PMG entrypoint" },
@@ -65,7 +70,11 @@ export async function contextCommand(rawArgs: string[], cwd: string): Promise<vo
 
   const maxFiles = getNumberFlag(args, "max-files", 12);
   const maxCharsPerFile = getNumberFlag(args, "max-chars-per-file", 4000);
-  const { candidates, excludedSources } = await collectCandidates(root, task);
+  const filters = {
+    reviews: !hasFlag(args, "no-reviews"),
+    specs: !hasFlag(args, "no-specs")
+  };
+  const { candidates, excludedSources } = await collectCandidates(root, task, filters);
   const selected = selectCandidates(candidates, maxFiles);
 
   if (subcommand === "explain") {
@@ -74,6 +83,7 @@ export async function contextCommand(rawArgs: string[], cwd: string): Promise<vo
       root,
       maxFiles,
       maxCharsPerFile,
+      filters,
       candidates,
       selected,
       excludedSources
@@ -124,6 +134,7 @@ interface ContextExplanation {
     maxFiles: number;
     maxCharsPerFile: number;
   };
+  filters: ContextFilters;
   selectedSources: Array<{
     path: string;
     score: number;
@@ -143,6 +154,7 @@ function createContextExplanation(input: {
   root: string;
   maxFiles: number;
   maxCharsPerFile: number;
+  filters: ContextFilters;
   candidates: Candidate[];
   selected: Candidate[];
   excludedSources: ExcludedSource[];
@@ -156,6 +168,7 @@ function createContextExplanation(input: {
       maxFiles: input.maxFiles,
       maxCharsPerFile: input.maxCharsPerFile
     },
+    filters: input.filters,
     selectedSources: input.selected.map(toSourceSummary),
     candidateSources: input.candidates.map((candidate) => ({
       ...toSourceSummary(candidate),
@@ -204,7 +217,7 @@ function renderContextExplanation(explanation: ContextExplanation): string {
   return lines.join("\n");
 }
 
-async function collectCandidates(root: string, task: string): Promise<CandidateCollection> {
+async function collectCandidates(root: string, task: string, filters: ContextFilters): Promise<CandidateCollection> {
   const byPath = new Map<string, Candidate>();
   const excludedSources: ExcludedSource[] = [];
 
@@ -231,7 +244,7 @@ async function collectCandidates(root: string, task: string): Promise<CandidateC
       const content = await readText(filePath);
       const relativePath = toPosixPath(path.relative(root, filePath));
       const baseScore = scoreText(task, relativePath, content);
-      const exclusionReason = defaultContextExclusionReason(relativePath, content);
+      const exclusionReason = sourceFilterExclusionReason(relativePath, filters) ?? defaultContextExclusionReason(relativePath, content);
 
       if (exclusionReason) {
         if (baseScore >= MIN_EXCLUDED_SOURCE_SCORE) {
@@ -262,6 +275,17 @@ async function collectCandidates(root: string, task: string): Promise<CandidateC
     candidates: [...byPath.values()],
     excludedSources: excludedSources.sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
   };
+}
+
+function sourceFilterExclusionReason(relativePath: string, filters: ContextFilters): string | null {
+  if (!filters.reviews && relativePath.startsWith(".pmg/reviews/")) {
+    return "review sources disabled by --no-reviews";
+  }
+  if (!filters.specs && relativePath.startsWith(".pmg/specs/")) {
+    return "spec sources disabled by --no-specs";
+  }
+
+  return null;
 }
 
 function defaultContextExclusionReason(relativePath: string, content: string): string | null {
