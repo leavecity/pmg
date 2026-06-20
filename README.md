@@ -82,9 +82,10 @@ Check PMG health:
 node dist/cli.js status /path/to/repo
 node dist/cli.js scan /path/to/repo
 node dist/cli.js doctor /path/to/repo
+node dist/cli.js doctor --path /path/to/repo --json
 ```
 
-`pmg doctor` also reports early memory hygiene warnings, including deprecated memory, conflicting memory, and broken `Superseded-By` references. It reports blocking proposal contract errors when reviewed memory workflow files are malformed.
+`pmg doctor` also reports early memory hygiene warnings, including deprecated memory, conflicting memory, and broken `Superseded-By` references. It reports blocking proposal contract errors when reviewed memory workflow files are malformed. The `--json` output emits `ok`, `errors`, `warnings`, and `summary` fields for scripts and CI checks.
 
 Create a reviewable cleanup proposal from those warnings:
 
@@ -182,6 +183,7 @@ node dist/cli.js memory project apply 2026-06-16-refresh-project-purpose \
 - Do not load all memory for every task.
 - Treat confirmed memory differently from inferred, experimental, deprecated, or conflicting memory.
 - Make every promotion into durable memory reviewable.
+- Keep machine-readable metadata stable so human-facing memory can later support developer-preferred languages.
 
 ## Repository layout
 
