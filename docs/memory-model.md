@@ -43,3 +43,12 @@ Cleanup proposals must include a `Findings` section whose finding paths resolve 
 `pmg memory conflict propose` creates a pending conflict-resolution proposal. The proposal names the conflicting source, the target memory file, the proposed resolved guidance, and evidence.
 
 `pmg memory conflict apply` applies a reviewed conflict-resolution proposal. It writes the resolved guidance into the target memory file, marks the target as confirmed when needed, archives the conflicting source, and keeps an audit record under `.pmg/memory/archive/conflict-resolutions/`.
+
+Audit records should live under the archive directory that matches their workflow:
+
+- promoted memory proposals: `.pmg/memory/archive/promoted/`
+- applied project memory updates: `.pmg/memory/archive/project-updates/`
+- applied cleanup proposals: `.pmg/memory/archive/cleanup-applied/`
+- applied conflict-resolution proposals: `.pmg/memory/archive/conflict-resolutions/`
+
+Applied and promoted audit records should not remain in `.pmg/memory/proposals/`.
