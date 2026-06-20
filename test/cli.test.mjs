@@ -396,6 +396,45 @@ test("pmg context explain json reports selected candidates and excluded sources 
   assert.ok(payload.excludedSources.some((source) => source.path === ".pmg/memory/old-auth.md"));
 });
 
+test("pmg context explain reports review sources disabled by filter flags", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-no-reviews-"));
+
+  await runPmg(["init", target]);
+  await runPmg([
+    "review",
+    "create",
+    "--path",
+    target,
+    "--type",
+    "security",
+    "--title",
+    "Auth token review",
+    "--findings",
+    "Auth token debug logging must stay disabled."
+  ]);
+
+  const { stdout } = await runPmg([
+    "context",
+    "explain",
+    "--path",
+    target,
+    "--task",
+    "auth token debug logging",
+    "--max-files",
+    "20",
+    "--no-reviews",
+    "--json"
+  ]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.filters.reviews, false);
+  assert.ok(!payload.selectedSources.some((source) => source.path.includes(".pmg/reviews/")));
+  assert.ok(!payload.candidateSources.some((source) => source.path.includes(".pmg/reviews/")));
+  assert.ok(payload.excludedSources.some((source) =>
+    source.path.includes(".pmg/reviews/") && source.reason === "review sources disabled by --no-reviews"
+  ));
+});
+
 test("pmg context build can include task-relevant agent profiles", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-profiles-"));
 

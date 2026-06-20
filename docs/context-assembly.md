@@ -24,4 +24,6 @@ When `pmg context build --json` is used, the output includes `excludedSources` f
 
 `pmg context explain` reports the same selection logic without emitting the full context bundle. Its JSON output includes selected sources, candidate sources with `selected` markers, excluded sources, and the active file/character budgets.
 
+Use `--no-reviews` or `--no-specs` to temporarily disable review or spec sources. Disabled task-relevant sources appear in `excludedSources` with an explicit filter reason.
+
 This is intentionally simple. Future versions may add structured indexes, embeddings, graph traversal, or richer profile matching, but none of those are required for v1.
