@@ -22,4 +22,6 @@ Agent profiles under `.pmg/profiles/` are eligible for task-specific context sel
 
 When `pmg context build --json` is used, the output includes `excludedSources` for task-relevant files that were omitted by default governance rules. Each excluded source includes a path, score, and reason so users can audit why PMG did not include it in the working context.
 
+`pmg context explain` reports the same selection logic without emitting the full context bundle. Its JSON output includes selected sources, candidate sources with `selected` markers, excluded sources, and the active file/character budgets.
+
 This is intentionally simple. Future versions may add structured indexes, embeddings, graph traversal, or richer profile matching, but none of those are required for v1.

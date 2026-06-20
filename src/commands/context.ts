@@ -48,8 +48,8 @@ export async function contextCommand(rawArgs: string[], cwd: string): Promise<vo
   const args = parseArgs(rawArgs);
   const subcommand = args.positional[0];
 
-  if (subcommand !== "build") {
-    throw new Error("Usage: pmg context build --task <task>");
+  if (subcommand !== "build" && subcommand !== "explain") {
+    throw new Error("Usage: pmg context <build|explain> --task <task>");
   }
 
   const root = path.resolve(cwd, getStringFlag(args, "path") ?? ".");
@@ -67,6 +67,27 @@ export async function contextCommand(rawArgs: string[], cwd: string): Promise<vo
   const maxCharsPerFile = getNumberFlag(args, "max-chars-per-file", 4000);
   const { candidates, excludedSources } = await collectCandidates(root, task);
   const selected = selectCandidates(candidates, maxFiles);
+
+  if (subcommand === "explain") {
+    const explanation = createContextExplanation({
+      task,
+      root,
+      maxFiles,
+      maxCharsPerFile,
+      candidates,
+      selected,
+      excludedSources
+    });
+
+    if (hasFlag(args, "json")) {
+      console.log(JSON.stringify(explanation, null, 2));
+      return;
+    }
+
+    console.log(renderContextExplanation(explanation));
+    return;
+  }
+
   const bundle = renderContextBundle(root, task, selected, maxCharsPerFile);
   const output = getStringFlag(args, "output");
 
@@ -94,6 +115,93 @@ export async function contextCommand(rawArgs: string[], cwd: string): Promise<vo
   }
 
   console.log(bundle);
+}
+
+interface ContextExplanation {
+  task: string;
+  root: string;
+  budgets: {
+    maxFiles: number;
+    maxCharsPerFile: number;
+  };
+  selectedSources: Array<{
+    path: string;
+    score: number;
+    reason: string;
+  }>;
+  candidateSources: Array<{
+    path: string;
+    score: number;
+    reason: string;
+    selected: boolean;
+  }>;
+  excludedSources: ExcludedSource[];
+}
+
+function createContextExplanation(input: {
+  task: string;
+  root: string;
+  maxFiles: number;
+  maxCharsPerFile: number;
+  candidates: Candidate[];
+  selected: Candidate[];
+  excludedSources: ExcludedSource[];
+}): ContextExplanation {
+  const selectedPaths = new Set(input.selected.map((candidate) => candidate.relativePath));
+
+  return {
+    task: input.task,
+    root: input.root,
+    budgets: {
+      maxFiles: input.maxFiles,
+      maxCharsPerFile: input.maxCharsPerFile
+    },
+    selectedSources: input.selected.map(toSourceSummary),
+    candidateSources: input.candidates.map((candidate) => ({
+      ...toSourceSummary(candidate),
+      selected: selectedPaths.has(candidate.relativePath)
+    })),
+    excludedSources: input.excludedSources
+  };
+}
+
+function toSourceSummary(candidate: Candidate): { path: string; score: number; reason: string } {
+  return {
+    path: candidate.relativePath,
+    score: candidate.score,
+    reason: candidate.reason
+  };
+}
+
+function renderContextExplanation(explanation: ContextExplanation): string {
+  const lines: string[] = [];
+
+  lines.push("# PMG Context Explanation");
+  lines.push("");
+  lines.push(`Task: ${explanation.task}`);
+  lines.push(`Root: ${explanation.root}`);
+  lines.push(`Budget: ${explanation.budgets.maxFiles} file(s), ${explanation.budgets.maxCharsPerFile} chars per file`);
+  lines.push("");
+  lines.push("## Selected Sources");
+  lines.push("");
+  for (const source of explanation.selectedSources) {
+    lines.push(`- ${source.path} (${source.reason}, score ${source.score})`);
+  }
+  lines.push("");
+  lines.push("## Candidate Sources");
+  lines.push("");
+  for (const source of explanation.candidateSources) {
+    const selected = source.selected ? "selected" : "not selected";
+    lines.push(`- ${source.path} (${selected}, ${source.reason}, score ${source.score})`);
+  }
+  lines.push("");
+  lines.push("## Excluded Sources");
+  lines.push("");
+  for (const source of explanation.excludedSources) {
+    lines.push(`- ${source.path} (${source.reason}, score ${source.score})`);
+  }
+
+  return lines.join("\n");
 }
 
 async function collectCandidates(root: string, task: string): Promise<CandidateCollection> {

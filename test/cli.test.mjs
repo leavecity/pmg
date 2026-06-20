@@ -359,6 +359,43 @@ test("pmg context build json explains excluded memory sources", async () => {
   );
 });
 
+test("pmg context explain json reports selected candidates and excluded sources without content", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-explain-json-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "current-auth.md"),
+    "# Current Auth\n\nStatus: confirmed\n\nAuth token logging must stay disabled.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "old-auth.md"),
+    "# Old Auth\n\nStatus: deprecated\n\nDeprecated auth token logging guidance.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg([
+    "context",
+    "explain",
+    "--path",
+    target,
+    "--task",
+    "auth token logging",
+    "--max-files",
+    "20",
+    "--json"
+  ]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.task, "auth token logging");
+  assert.equal(payload.root, target);
+  assert.equal(payload.content, undefined);
+  assert.equal(payload.budgets.maxFiles, 20);
+  assert.ok(payload.selectedSources.some((source) => source.path === ".pmg/memory/current-auth.md"));
+  assert.ok(payload.candidateSources.some((source) => source.path === ".pmg/memory/current-auth.md" && source.selected === true));
+  assert.ok(payload.excludedSources.some((source) => source.path === ".pmg/memory/old-auth.md"));
+});
+
 test("pmg context build can include task-relevant agent profiles", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-profiles-"));
 

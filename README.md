@@ -167,6 +167,12 @@ Build a task-specific context bundle:
 node dist/cli.js context build --path /path/to/repo --task "implement login page"
 ```
 
+Explain context selection without emitting the full bundle:
+
+```bash
+node dist/cli.js context explain --path /path/to/repo --task "implement login page" --json
+```
+
 Write the bundle to a file:
 
 ```bash
