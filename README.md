@@ -75,6 +75,14 @@ Initialize PMG in a repository:
 node dist/cli.js init /path/to/repo
 ```
 
+Initialize with a project working language:
+
+```bash
+node dist/cli.js init /path/to/repo --language zh-CN
+```
+
+This updates `.pmg/profiles/language.md`. PMG keeps command flags, JSON fields, and metadata keys stable while allowing human-facing agent responses and project memory text to follow the configured language preference.
+
 When the target is inside a Git repository, `pmg init` writes PMG local-state rules to `.git/info/exclude`. It does not modify the tracked root `.gitignore` by default.
 
 Check PMG health:

@@ -9,7 +9,7 @@ import { statusCommand } from "../commands/status.js";
 const HELP = `Project Memory Governance (pmg)
 
 Usage:
-  pmg init [path] [--force]
+  pmg init [path] [--force] [--language <tag>]
   pmg status [path] [--json]
   pmg scan [path] [--json]
   pmg doctor [path]

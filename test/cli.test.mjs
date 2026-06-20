@@ -61,6 +61,20 @@ test("pmg init writes default agent profiles", async () => {
   }
 });
 
+test("pmg init can write a project language profile", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-init-language-"));
+
+  const { stdout } = await runPmg(["init", target, "--language", "zh-CN"]);
+  const languageProfile = await readFile(path.join(target, ".pmg", "profiles", "language.md"), "utf8");
+
+  assert.match(stdout, /Updated PMG language profile: zh-CN/);
+  assert.match(languageProfile, /Project-Language: zh-CN/);
+  assert.match(languageProfile, /Conversation-Language: zh-CN/);
+  assert.match(languageProfile, /Agent-Response-Language: zh-CN/);
+  assert.match(languageProfile, /Formal-Docs-Language: en/);
+  assert.match(languageProfile, /Machine-Metadata-Language: en/);
+});
+
 test("pmg init writes PMG local state rules to git info exclude", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-init-git-"));
 
