@@ -49,6 +49,7 @@ pmg memory cleanup apply
 pmg memory conflict propose
 pmg memory conflict apply
 pmg review create
+pmg review memory propose
 ```
 
 Planned commands:
@@ -143,6 +144,14 @@ node dist/cli.js review create \
 ```
 
 Review creation writes `.pmg/reviews/YYYY-MM-DD-<slug>.md`. It does not modify memory files; recommended memory changes still need the memory proposal workflow.
+
+Turn a review recommendation into a pending memory proposal:
+
+```bash
+node dist/cli.js review memory propose auth-token-review --path /path/to/repo
+```
+
+This reads the review's `Recommended Memory Updates` section and creates a pending proposal under `.pmg/memory/proposals/`. It does not promote the proposal into durable memory.
 
 Build a task-specific context bundle:
 

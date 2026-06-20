@@ -22,9 +22,10 @@ Usage:
   pmg memory cleanup propose
   pmg memory cleanup apply <proposal> [--reviewer <name>]
   pmg review create --type <type> --title <title>
+  pmg review memory propose <review>
 
 MVP command status:
-  implemented: init, status, scan, doctor, context build, memory propose/promote/archive, memory project propose/apply, memory cleanup propose/apply, review create
+  implemented: init, status, scan, doctor, context build, memory propose/promote/archive, memory project propose/apply, memory cleanup propose/apply, review create, review memory propose
   planned: memory add, spec create, adr create
 `;
 

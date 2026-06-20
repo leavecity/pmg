@@ -737,6 +737,73 @@ test("pmg review create output can enter task context", async () => {
   assert.match(stdout, /Auth token reviews must check debug logging/);
 });
 
+test("pmg review memory propose creates a pending memory proposal from review recommendations", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-review-memory-propose-"));
+  const date = new Date().toISOString().slice(0, 10);
+
+  await runPmg(["init", target]);
+  const securityMemoryBefore = await readFile(path.join(target, ".pmg", "memory", "security.md"), "utf8");
+  await runPmg([
+    "review",
+    "create",
+    "--path",
+    target,
+    "--type",
+    "security",
+    "--title",
+    "Auth token review",
+    "--scope",
+    "Login token handling.",
+    "--findings",
+    "Debug logging must stay token-safe.",
+    "--recommended-memory-updates",
+    "Authentication flows must not log raw tokens."
+  ]);
+
+  const { stdout } = await runPmg([
+    "review",
+    "memory",
+    "propose",
+    "auth-token-review",
+    "--path",
+    target
+  ]);
+
+  assert.match(stdout, /Created memory proposal from review/);
+  assert.equal(await readFile(path.join(target, ".pmg", "memory", "security.md"), "utf8"), securityMemoryBefore);
+
+  const proposalPath = path.join(target, ".pmg", "memory", "proposals", `${date}-auth-token-review-memory-update.md`);
+  const proposal = await readFile(proposalPath, "utf8");
+
+  assert.match(proposal, /# Memory Proposal: Auth token review memory update/);
+  assert.match(proposal, /Status: pending/);
+  assert.match(proposal, /Domain: security/);
+  assert.match(proposal, new RegExp(`Source: \\.pmg/reviews/${date}-auth-token-review\\.md`));
+  assert.match(proposal, /Authentication flows must not log raw tokens/);
+  assert.match(proposal, /Debug logging must stay token-safe/);
+});
+
+test("pmg review memory propose refuses reviews without recommendations", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-review-memory-empty-"));
+
+  await runPmg(["init", target]);
+  await runPmg([
+    "review",
+    "create",
+    "--path",
+    target,
+    "--type",
+    "security",
+    "--title",
+    "Empty recommendation review"
+  ]);
+
+  await assert.rejects(
+    runPmg(["review", "memory", "propose", "empty-recommendation-review", "--path", target]),
+    /review has no recommended memory updates/
+  );
+});
+
 test("pmg doctor reports broken registry references", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-"));
 
