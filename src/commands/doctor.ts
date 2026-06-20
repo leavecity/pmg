@@ -52,6 +52,7 @@ export async function createDoctorFindings(root: string): Promise<DoctorFinding[
   await checkJsonRegistry(root, ".pmg/registry/memory-index.json", "memory", findings);
   await checkJsonRegistry(root, ".pmg/registry/skills.json", "skills", findings);
   await checkMemoryStatus(root, findings);
+  await checkMemoryProposalContracts(root, findings);
   await checkPmgLocalStateIgnored(root, findings);
 
   return findings;
@@ -163,6 +164,99 @@ async function checkMemoryStatus(root: string, findings: DoctorFinding[]): Promi
       });
     }
   }
+}
+
+async function checkMemoryProposalContracts(root: string, findings: DoctorFinding[]): Promise<void> {
+  const proposalsRoot = path.join(root, ".pmg", "memory", "proposals");
+  const files = await listMarkdownFiles(proposalsRoot);
+
+  for (const filePath of files) {
+    const relativePath = path.relative(root, filePath).split(path.sep).join("/");
+    const content = await readText(filePath);
+    const metadata = readMetadata(content);
+    const type = metadata.type?.toLowerCase();
+
+    if (!type) {
+      continue;
+    }
+
+    if (type !== "memory-cleanup" && type !== "conflict-resolution") {
+      findings.push({
+        severity: "error",
+        path: relativePath,
+        message: `unknown proposal Type: ${metadata.type}`
+      });
+      continue;
+    }
+
+    if (type === "conflict-resolution") {
+      await checkConflictResolutionProposal(root, relativePath, content, metadata, findings);
+    }
+  }
+}
+
+async function checkConflictResolutionProposal(
+  root: string,
+  relativePath: string,
+  content: string,
+  metadata: Record<string, string>,
+  findings: DoctorFinding[]
+): Promise<void> {
+  await checkProjectRelativeMetadataPath(root, relativePath, metadata.source, "Source", findings);
+  await checkProjectRelativeMetadataPath(root, relativePath, metadata.target, "Target", findings);
+
+  if (!hasMarkdownSection(content, "Resolution Memory")) {
+    findings.push({
+      severity: "error",
+      path: relativePath,
+      message: "conflict-resolution proposal missing Resolution Memory section"
+    });
+  }
+}
+
+async function checkProjectRelativeMetadataPath(
+  root: string,
+  proposalPath: string,
+  value: string | undefined,
+  fieldName: "Source" | "Target",
+  findings: DoctorFinding[]
+): Promise<void> {
+  if (!value) {
+    findings.push({
+      severity: "error",
+      path: proposalPath,
+      message: `conflict-resolution proposal missing ${fieldName} metadata`
+    });
+    return;
+  }
+
+  const absolutePath = path.resolve(root, value);
+  const relativePath = path.relative(root, absolutePath);
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    findings.push({
+      severity: "error",
+      path: proposalPath,
+      message: `conflict-resolution proposal ${fieldName} resolves outside the project root: ${value}`
+    });
+    return;
+  }
+
+  if (!(await pathExists(absolutePath))) {
+    findings.push({
+      severity: "error",
+      path: proposalPath,
+      message: `conflict-resolution proposal ${fieldName} does not exist: ${value}`
+    });
+  }
+}
+
+function hasMarkdownSection(content: string, heading: string): boolean {
+  const pattern = new RegExp(`^## ${escapeRegExp(heading)}\\s*$`, "im");
+  return pattern.test(content);
+}
+
+function escapeRegExp(input: string): string {
+  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 function isRecord(input: unknown): input is Record<string, unknown> {

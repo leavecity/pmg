@@ -32,6 +32,8 @@ Durable memory should be promoted only when policy allows it. One-off observatio
 - conflicting memory that needs explicit resolution
 - `Superseded-By` references that point to missing replacement files
 
+`pmg doctor` also reports blocking proposal contract errors, including unknown proposal types and incomplete conflict-resolution proposals.
+
 `pmg memory cleanup propose` turns those hygiene warnings into a pending cleanup proposal under `.pmg/memory/proposals/`. It does not archive, replace, or rewrite memory by itself.
 
 `pmg memory cleanup apply` applies reviewed cleanup proposals conservatively. The MVP can archive deprecated memory and keeps an audit record under `.pmg/memory/archive/cleanup-applied/`. Conflicting memory is not resolved automatically.

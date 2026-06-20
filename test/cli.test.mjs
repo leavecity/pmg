@@ -681,6 +681,55 @@ test("pmg doctor reports broken registry references", async () => {
   assert.match(stdout, /referenced file does not exist: \.pmg\/memory\/missing\.md/);
 });
 
+test("pmg doctor reports invalid memory proposal types", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-proposal-type-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "proposals", "bad-type.md"),
+    "# Bad Proposal\n\nStatus: pending\nType: unknown-proposal\n\n## Summary\n\nInvalid proposal type.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Blocking issues found/);
+  assert.match(stdout, /\.pmg\/memory\/proposals\/bad-type\.md: unknown proposal Type: unknown-proposal/);
+});
+
+test("pmg doctor reports missing conflict proposal contract fields", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-conflict-contract-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "proposals", "bad-conflict.md"),
+    "# Bad Conflict Proposal\n\nStatus: pending\nType: conflict-resolution\nTarget: .pmg/memory/security.md\n\n## Summary\n\nMissing source and resolution.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Blocking issues found/);
+  assert.match(stdout, /\.pmg\/memory\/proposals\/bad-conflict\.md: conflict-resolution proposal missing Source metadata/);
+  assert.match(stdout, /\.pmg\/memory\/proposals\/bad-conflict\.md: conflict-resolution proposal missing Resolution Memory section/);
+});
+
+test("pmg doctor reports missing conflict proposal references", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-conflict-reference-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "proposals", "bad-conflict-reference.md"),
+    "# Bad Conflict Proposal\n\nStatus: pending\nType: conflict-resolution\nSource: .pmg/memory/missing-conflict.md\nTarget: .pmg/memory/security.md\n\n## Summary\n\nMissing source file.\n\n## Resolution Memory\n\nUse the confirmed security memory.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Blocking issues found/);
+  assert.match(stdout, /\.pmg\/memory\/proposals\/bad-conflict-reference\.md: conflict-resolution proposal Source does not exist: \.pmg\/memory\/missing-conflict\.md/);
+});
+
 test("pmg doctor warns about memory cleanup candidates", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-memory-cleanup-"));
 

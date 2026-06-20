@@ -7,7 +7,7 @@ The CLI should be boring, deterministic, and easy to test.
 - `pmg init`: copy the default PMG files into a repository and maintain local Git ignore rules when possible
 - `pmg status`: report whether required PMG files exist
 - `pmg scan`: discover project guidance, specs, ADRs, and debt markers without writing memory
-- `pmg doctor`: run basic health, registry, local-state, and memory hygiene checks
+- `pmg doctor`: run basic health, registry, local-state, memory hygiene, and proposal contract checks
 - `pmg context build`: assemble a bounded task-specific context bundle
 - `pmg memory propose`: create a pending durable-memory candidate
 - `pmg memory promote`: append an approved proposal to a target memory file and keep an audit record

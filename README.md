@@ -84,7 +84,7 @@ node dist/cli.js scan /path/to/repo
 node dist/cli.js doctor /path/to/repo
 ```
 
-`pmg doctor` also reports early memory hygiene warnings, including deprecated memory, conflicting memory, and broken `Superseded-By` references.
+`pmg doctor` also reports early memory hygiene warnings, including deprecated memory, conflicting memory, and broken `Superseded-By` references. It reports blocking proposal contract errors when reviewed memory workflow files are malformed.
 
 Create a reviewable cleanup proposal from those warnings:
 
