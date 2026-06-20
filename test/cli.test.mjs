@@ -656,6 +656,87 @@ test("pmg memory conflict apply writes resolved memory and archives the conflict
   );
 });
 
+test("pmg review create writes a draft review without modifying memory", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-review-create-"));
+  const date = new Date().toISOString().slice(0, 10);
+
+  await runPmg(["init", target]);
+  const projectMemoryBefore = await readFile(path.join(target, ".pmg", "memory", "project.md"), "utf8");
+
+  const { stdout } = await runPmg([
+    "review",
+    "create",
+    "--path",
+    target,
+    "--type",
+    "security",
+    "--title",
+    "Auth token review",
+    "--scope",
+    "Login token handling.",
+    "--findings",
+    "No token leaks found in the reviewed flow.",
+    "--risks",
+    "Debug logging could expose tokens later.",
+    "--recommended-memory-updates",
+    "Remember that auth flows must not log raw tokens.",
+    "--related-files",
+    "src/auth.ts,docs/security.md"
+  ]);
+
+  assert.match(stdout, /Created review/);
+  assert.equal(await readFile(path.join(target, ".pmg", "memory", "project.md"), "utf8"), projectMemoryBefore);
+
+  const reviewPath = path.join(target, ".pmg", "reviews", `${date}-auth-token-review.md`);
+  const review = await readFile(reviewPath, "utf8");
+
+  assert.match(review, /# Review: Auth token review/);
+  assert.match(review, /Type: security/);
+  assert.match(review, /Status: draft/);
+  assert.match(review, new RegExp(`Date: ${date}`));
+  assert.match(review, /## Scope/);
+  assert.match(review, /Login token handling/);
+  assert.match(review, /## Findings/);
+  assert.match(review, /No token leaks found/);
+  assert.match(review, /## Recommended Memory Updates/);
+  assert.match(review, /Remember that auth flows must not log raw tokens/);
+  assert.match(review, /## Related Files/);
+  assert.match(review, /- src\/auth\.ts/);
+  assert.match(review, /- docs\/security\.md/);
+});
+
+test("pmg review create output can enter task context", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-review-context-"));
+
+  await runPmg(["init", target]);
+  await runPmg([
+    "review",
+    "create",
+    "--path",
+    target,
+    "--type",
+    "security",
+    "--title",
+    "Auth token review",
+    "--findings",
+    "Auth token reviews must check debug logging."
+  ]);
+
+  const { stdout } = await runPmg([
+    "context",
+    "build",
+    "--path",
+    target,
+    "--task",
+    "auth token debug logging review",
+    "--max-files",
+    "12"
+  ]);
+
+  assert.match(stdout, /\.pmg\/reviews\/\d{4}-\d{2}-\d{2}-auth-token-review\.md/);
+  assert.match(stdout, /Auth token reviews must check debug logging/);
+});
+
 test("pmg doctor reports broken registry references", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-"));
 
@@ -949,6 +1030,28 @@ test("pmg doctor reports archived memory registered as an active source", async 
 
   assert.match(stdout, /Blocking issues found/);
   assert.match(stdout, /\.pmg\/registry\/memory-index\.json: registry must not reference archived memory: \.pmg\/memory\/archive\/archived\/old-security\.md/);
+});
+
+test("pmg doctor reports malformed review files", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-review-contract-"));
+
+  await runPmg(["init", target]);
+  await mkdir(path.join(target, ".pmg", "reviews"), { recursive: true });
+  await writeFile(
+    path.join(target, ".pmg", "reviews", "bad-review.md"),
+    "# Review: Bad\n\nStatus: draft\n\n## Findings\n\nMissing metadata and sections.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Blocking issues found/);
+  assert.match(stdout, /\.pmg\/reviews\/bad-review\.md: review missing Type metadata/);
+  assert.match(stdout, /\.pmg\/reviews\/bad-review\.md: review missing Date metadata/);
+  assert.match(stdout, /\.pmg\/reviews\/bad-review\.md: review missing Scope section/);
+  assert.match(stdout, /\.pmg\/reviews\/bad-review\.md: review missing Risks section/);
+  assert.match(stdout, /\.pmg\/reviews\/bad-review\.md: review missing Recommended Memory Updates section/);
+  assert.match(stdout, /\.pmg\/reviews\/bad-review\.md: review missing Related Files section/);
 });
 
 test("pmg doctor warns about memory cleanup candidates", async () => {
