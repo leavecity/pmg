@@ -14,6 +14,7 @@ Usage:
   pmg scan [path] [--json]
   pmg doctor [path]
   pmg context build --task <task> [--output context.md]
+  pmg context explain --task <task> [--json]
   pmg memory propose --title <title> --observation <text>
   pmg memory promote <proposal> [--target <domain-or-path>]
   pmg memory archive <path-or-id> [--reason <reason>]
