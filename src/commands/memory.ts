@@ -316,6 +316,10 @@ async function applyMemoryCleanup(rawArgs: string[], cwd: string): Promise<void>
   }
 
   const findings = parseCleanupFindings(proposalContent);
+  for (const finding of findings) {
+    assertCleanupFindingInsideProject(root, finding.path);
+  }
+
   const deprecatedPaths = unique(findings
     .filter((finding) => finding.message === "deprecated memory should be archived or replaced in current context")
     .map((finding) => finding.path));
@@ -325,7 +329,7 @@ async function applyMemoryCleanup(rawArgs: string[], cwd: string): Promise<void>
   const archivedPaths: string[] = [];
 
   for (const deprecatedPath of deprecatedPaths) {
-    const absolutePath = path.join(root, deprecatedPath);
+    const absolutePath = path.resolve(root, deprecatedPath);
     if (!(await pathExists(absolutePath))) {
       manualPaths.push(deprecatedPath);
       continue;
@@ -710,6 +714,15 @@ function assertInsideProjectRoot(root: string, candidatePath: string, label: str
 
   if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
     throw new Error(`${label} resolves outside the project root: ${candidatePath}`);
+  }
+}
+
+function assertCleanupFindingInsideProject(root: string, findingPath: string): void {
+  const candidatePath = path.resolve(root, findingPath);
+  const relativePath = path.relative(root, candidatePath);
+
+  if (relativePath.startsWith("..") || path.isAbsolute(relativePath)) {
+    throw new Error(`memory cleanup finding resolves outside the project root: ${findingPath}`);
   }
 }
 

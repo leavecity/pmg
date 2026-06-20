@@ -781,6 +781,54 @@ test("pmg doctor reports missing conflict proposal references", async () => {
   assert.match(stdout, /\.pmg\/memory\/proposals\/bad-conflict-reference\.md: conflict-resolution proposal Source does not exist: \.pmg\/memory\/missing-conflict\.md/);
 });
 
+test("pmg doctor reports malformed cleanup proposals", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-cleanup-contract-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "proposals", "bad-cleanup.md"),
+    "# Bad Cleanup Proposal\n\nStatus: pending\nType: memory-cleanup\n\n## Summary\n\nMissing findings.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Blocking issues found/);
+  assert.match(stdout, /\.pmg\/memory\/proposals\/bad-cleanup\.md: memory-cleanup proposal missing Findings section/);
+});
+
+test("pmg doctor validates cleanup proposal finding paths", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-cleanup-paths-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "proposals", "bad-cleanup-paths.md"),
+    [
+      "# Bad Cleanup Proposal",
+      "",
+      "Status: pending",
+      "Type: memory-cleanup",
+      "",
+      "## Findings",
+      "",
+      "- ../outside.md: deprecated memory should be archived or replaced in current context",
+      "- .pmg/memory/missing.md: conflicting memory must be resolved before agents rely on it",
+      "",
+      "## Recommended Actions",
+      "",
+      "Review each finding."
+    ].join("\n"),
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Blocking issues found/);
+  assert.match(stdout, /\.pmg\/memory\/proposals\/bad-cleanup-paths\.md: memory-cleanup finding path resolves outside the project root: \.\.\/outside\.md/);
+  assert.match(stdout, /Warnings:/);
+  assert.match(stdout, /\.pmg\/memory\/proposals\/bad-cleanup-paths\.md: memory-cleanup finding path does not exist: \.pmg\/memory\/missing\.md/);
+});
+
 test("pmg doctor warns about memory cleanup candidates", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-memory-cleanup-"));
 
@@ -922,6 +970,35 @@ test("pmg memory cleanup apply keeps conflict-only proposals as audit records", 
   const cleanupAudits = await readdir(path.join(target, ".pmg", "memory", "archive", "cleanup-applied"));
 
   assert.equal(cleanupAudits.length, 1);
+});
+
+test("pmg memory cleanup apply refuses findings outside the project root", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-cleanup-apply-outside-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "proposals", "outside-cleanup.md"),
+    [
+      "# Outside Cleanup Proposal",
+      "",
+      "Status: pending",
+      "Type: memory-cleanup",
+      "",
+      "## Findings",
+      "",
+      "- ../outside.md: deprecated memory should be archived or replaced in current context",
+      "",
+      "## Recommended Actions",
+      "",
+      "Review each finding."
+    ].join("\n"),
+    "utf8"
+  );
+
+  await assert.rejects(
+    runPmg(["memory", "cleanup", "apply", "outside-cleanup", "--path", target]),
+    /memory cleanup finding resolves outside the project root/
+  );
 });
 
 test("pmg doctor warns when PMG local state is not ignored by host git", async () => {

@@ -85,7 +85,7 @@ node dist/cli.js doctor /path/to/repo
 node dist/cli.js doctor --path /path/to/repo --json
 ```
 
-`pmg doctor` also reports early memory hygiene warnings, including deprecated memory, conflicting memory, and broken `Superseded-By` references. It reports blocking proposal contract errors when reviewed memory workflow files are malformed. The `--json` output emits `ok`, `errors`, `warnings`, and `summary` fields for scripts and CI checks.
+`pmg doctor` also reports early memory hygiene warnings, including deprecated memory, conflicting memory, and broken `Superseded-By` references. It reports blocking proposal contract errors when reviewed memory workflow files are malformed, including malformed cleanup and conflict-resolution proposals. The `--json` output emits `ok`, `errors`, `warnings`, and `summary` fields for scripts and CI checks.
 
 Create a reviewable cleanup proposal from those warnings:
 
