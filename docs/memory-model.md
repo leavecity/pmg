@@ -10,6 +10,8 @@ PMG memory is durable project knowledge with an explicit status and lifecycle.
 - `deprecated`: previously valid but no longer recommended
 - `conflicting`: known to conflict with other project knowledge
 
+Active memory files may also use `pending` before confirmation and `archived` while being retired. `pmg doctor` validates active memory status values and reads top-level metadata separately from section-level metadata.
+
 ## Lifecycle
 
 ```text
@@ -52,3 +54,5 @@ Audit records should live under the archive directory that matches their workflo
 - applied conflict-resolution proposals: `.pmg/memory/archive/conflict-resolutions/`
 
 Applied and promoted audit records should not remain in `.pmg/memory/proposals/`.
+
+The memory registry should describe active memory sources. It should not reference files under `.pmg/memory/archive/`.

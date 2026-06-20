@@ -888,6 +888,69 @@ test("pmg doctor reports audit records in the wrong archive directory", async ()
   assert.match(stdout, /\.pmg\/memory\/archive\/cleanup-applied\/project-update\.md: applied project memory update audit record must be stored under \.pmg\/memory\/archive\/project-updates\//);
 });
 
+test("pmg doctor reports invalid active memory status values", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-memory-status-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "bad-status.md"),
+    "# Bad Status\n\nStatus: durable\n\nThis status is not part of the PMG memory lifecycle.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Blocking issues found/);
+  assert.match(stdout, /\.pmg\/memory\/bad-status\.md: memory Status must be one of: archived, confirmed, conflicting, deprecated, experimental, inferred, pending/);
+});
+
+test("pmg doctor reports pending active memory that contains confirmed guidance", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-pending-confirmed-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "security.md"),
+    "# Project Memory: Security\n\nStatus: pending\n\n## Promoted: Token handling\n\nStatus: confirmed\n\nDo not log raw tokens.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Blocking issues found/);
+  assert.match(stdout, /\.pmg\/memory\/security\.md: active memory has pending status but contains confirmed guidance/);
+});
+
+test("pmg doctor reports archived memory registered as an active source", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-archive-registry-"));
+
+  await runPmg(["init", target]);
+  await mkdir(path.join(target, ".pmg", "memory", "archive", "archived"), { recursive: true });
+  await writeFile(
+    path.join(target, ".pmg", "memory", "archive", "archived", "old-security.md"),
+    "# Old Security\n\nStatus: archived\n\nOld guidance.\n",
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "registry", "memory-index.json"),
+    JSON.stringify({
+      version: 1,
+      memory: [
+        {
+          path: ".pmg/memory/archive/archived/old-security.md",
+          domain: "security",
+          status: "archived"
+        }
+      ]
+    }),
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", target]);
+
+  assert.match(stdout, /Blocking issues found/);
+  assert.match(stdout, /\.pmg\/registry\/memory-index\.json: registry must not reference archived memory: \.pmg\/memory\/archive\/archived\/old-security\.md/);
+});
+
 test("pmg doctor warns about memory cleanup candidates", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-memory-cleanup-"));
 

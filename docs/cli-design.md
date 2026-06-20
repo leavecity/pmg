@@ -33,3 +33,5 @@ Commands that accept file selectors or output targets must keep resolved paths i
 Commands that create or update PMG files should follow the local-state model documented in [local-state-model.md](local-state-model.md): PMG local state is ignored by the host repository by default, while shared PMG assets require explicit promotion.
 
 Reviewed proposal workflows must move applied or promoted audit records out of `.pmg/memory/proposals/` and into their matching archive directory. `pmg doctor` reports audit records that remain in proposals or appear under the wrong archive kind.
+
+`pmg doctor` should validate active memory state without treating proposal or archive audit records as active memory. Top-level metadata controls lifecycle state; section-level metadata may describe promoted or resolved memory entries inside a file.
