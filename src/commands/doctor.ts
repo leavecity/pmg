@@ -105,6 +105,7 @@ export async function createDoctorFindings(root: string): Promise<DoctorFinding[
   await checkMemoryStatus(root, findings);
   await checkMemoryProposalContracts(root, findings);
   await checkMemoryAuditRecordLocations(root, findings);
+  await checkReviewContracts(root, findings);
   await checkPmgLocalStateIgnored(root, findings);
 
   return findings;
@@ -253,6 +254,37 @@ function isMemoryProposalOrArchiveRecord(relativePath: string): boolean {
 
 function hasConfirmedGuidance(content: string): boolean {
   return /^##\s+(?:Promoted|Conflict Resolution):.+$/im.test(content) && /^Status:\s*confirmed\s*$/im.test(content);
+}
+
+async function checkReviewContracts(root: string, findings: DoctorFinding[]): Promise<void> {
+  const reviewsRoot = path.join(root, ".pmg", "reviews");
+  const files = await listMarkdownFiles(reviewsRoot);
+
+  for (const filePath of files) {
+    const relativePath = path.relative(root, filePath).split(path.sep).join("/");
+    const content = await readText(filePath);
+    const metadata = readTopLevelMetadata(content);
+
+    for (const field of ["Type", "Status", "Date"]) {
+      if (!metadata[field.toLowerCase()]) {
+        findings.push({
+          severity: "error",
+          path: relativePath,
+          message: `review missing ${field} metadata`
+        });
+      }
+    }
+
+    for (const section of ["Scope", "Findings", "Risks", "Recommended Memory Updates", "Related Files"]) {
+      if (!hasMarkdownSection(content, section)) {
+        findings.push({
+          severity: "error",
+          path: relativePath,
+          message: `review missing ${section} section`
+        });
+      }
+    }
+  }
 }
 
 async function checkMemoryProposalContracts(root: string, findings: DoctorFinding[]): Promise<void> {

@@ -2,6 +2,7 @@ import { contextCommand } from "../commands/context.js";
 import { doctorCommand } from "../commands/doctor.js";
 import { initCommand } from "../commands/init.js";
 import { memoryCommand } from "../commands/memory.js";
+import { reviewCommand } from "../commands/review.js";
 import { scanCommand } from "../commands/scan.js";
 import { statusCommand } from "../commands/status.js";
 
@@ -20,10 +21,11 @@ Usage:
   pmg memory project apply <proposal> [--reviewer <name>]
   pmg memory cleanup propose
   pmg memory cleanup apply <proposal> [--reviewer <name>]
+  pmg review create --type <type> --title <title>
 
 MVP command status:
-  implemented: init, status, scan, doctor, context build, memory propose/promote/archive, memory project propose/apply, memory cleanup propose/apply
-  planned: memory add, spec create, adr create, review create
+  implemented: init, status, scan, doctor, context build, memory propose/promote/archive, memory project propose/apply, memory cleanup propose/apply, review create
+  planned: memory add, spec create, adr create
 `;
 
 export async function runCli(args: string[], cwd: string): Promise<void> {
@@ -53,9 +55,11 @@ export async function runCli(args: string[], cwd: string): Promise<void> {
     case "memory":
       await memoryCommand(rest, cwd);
       return;
+    case "review":
+      await reviewCommand(rest, cwd);
+      return;
     case "spec":
     case "adr":
-    case "review":
       throw new Error(`${command} subcommands are planned after the MVP foundation.`);
     default:
       throw new Error(`Unknown command: ${command}. Run pmg help.`);

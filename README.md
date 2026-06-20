@@ -48,13 +48,13 @@ pmg memory cleanup propose
 pmg memory cleanup apply
 pmg memory conflict propose
 pmg memory conflict apply
+pmg review create
 ```
 
 Planned commands:
 
 ```bash
 pmg memory add
-pmg review create
 pmg adr create
 pmg spec create
 ```
@@ -127,6 +127,22 @@ node dist/cli.js memory conflict apply 2026-06-16-resolve-token-storage-guidance
 ```
 
 Conflict apply writes the resolved guidance into the target memory file, archives the conflicting source, and keeps the applied proposal as an audit record.
+
+Create a governance review artifact:
+
+```bash
+node dist/cli.js review create \
+  --path /path/to/repo \
+  --type security \
+  --title "Auth token review" \
+  --scope "Login and session token handling" \
+  --findings "No raw token logging found." \
+  --risks "Future debug logging could expose tokens." \
+  --recommended-memory-updates "Auth flows must not log raw tokens." \
+  --related-files "src/auth.ts,docs/security.md"
+```
+
+Review creation writes `.pmg/reviews/YYYY-MM-DD-<slug>.md`. It does not modify memory files; recommended memory changes still need the memory proposal workflow.
 
 Build a task-specific context bundle:
 

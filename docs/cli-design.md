@@ -18,11 +18,11 @@ The CLI should be boring, deterministic, and easy to test.
 - `pmg memory cleanup apply`: apply reviewed cleanup proposals conservatively, archiving deprecated memory while leaving conflicts for manual resolution; finding paths must stay inside the governed project
 - `pmg memory conflict propose`: create a pending conflict-resolution proposal without modifying memory files
 - `pmg memory conflict apply`: apply a reviewed conflict-resolution proposal by writing resolved guidance, archiving the conflicting source, and keeping an audit record
+- `pmg review create`: create a draft governance review artifact without modifying memory
 
 ## Planned
 
 - `pmg memory add`
-- `pmg review create`
 - `pmg adr create`
 - `pmg spec create`
 
