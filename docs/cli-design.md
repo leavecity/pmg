@@ -19,6 +19,7 @@ The CLI should be boring, deterministic, and easy to test.
 - `pmg memory conflict propose`: create a pending conflict-resolution proposal without modifying memory files
 - `pmg memory conflict apply`: apply a reviewed conflict-resolution proposal by writing resolved guidance, archiving the conflicting source, and keeping an audit record
 - `pmg review create`: create a draft governance review artifact without modifying memory
+- `pmg review memory propose`: create a pending memory proposal from a review recommendation without promoting it
 
 ## Planned
 
