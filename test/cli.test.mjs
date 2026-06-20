@@ -681,6 +681,57 @@ test("pmg doctor reports broken registry references", async () => {
   assert.match(stdout, /referenced file does not exist: \.pmg\/memory\/missing\.md/);
 });
 
+test("pmg doctor json reports a healthy repository", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-json-ok-"));
+
+  await runPmg(["init", target]);
+
+  const { stdout } = await runPmg(["doctor", "--path", target, "--json"]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.root, target);
+  assert.equal(payload.ok, true);
+  assert.deepEqual(payload.errors, []);
+  assert.deepEqual(payload.warnings, []);
+  assert.deepEqual(payload.summary, { errorCount: 0, warningCount: 0 });
+});
+
+test("pmg doctor json reports errors and warnings", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-json-findings-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "registry", "memory-index.json"),
+    JSON.stringify({
+      version: 1,
+      memory: [{ path: ".pmg/memory/missing.md", domain: "missing", status: "confirmed" }]
+    }),
+    "utf8"
+  );
+  await writeFile(
+    path.join(target, ".pmg", "memory", "deprecated-rule.md"),
+    "# Deprecated Rule\n\nStatus: deprecated\n\nOld guidance.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", "--path", target, "--json"]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.ok, false);
+  assert.equal(payload.summary.errorCount, 1);
+  assert.equal(payload.summary.warningCount, 1);
+  assert.deepEqual(payload.errors[0], {
+    severity: "error",
+    path: ".pmg/registry/memory-index.json",
+    message: "referenced file does not exist: .pmg/memory/missing.md"
+  });
+  assert.deepEqual(payload.warnings[0], {
+    severity: "warning",
+    path: ".pmg/memory/deprecated-rule.md",
+    message: "deprecated memory should be archived or replaced in current context"
+  });
+});
+
 test("pmg doctor reports invalid memory proposal types", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-proposal-type-"));
 

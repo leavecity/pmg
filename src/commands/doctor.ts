@@ -1,5 +1,5 @@
 import { createStatusReport } from "./status.js";
-import { parseArgs, getStringFlag } from "../lib/args.js";
+import { parseArgs, getStringFlag, hasFlag } from "../lib/args.js";
 import path from "node:path";
 import { listMarkdownFiles, pathExists, readText } from "../lib/fs.js";
 import { getPmgLocalStateIgnoreStatus } from "../lib/git.js";
@@ -16,6 +16,11 @@ export async function doctorCommand(rawArgs: string[], cwd: string): Promise<voi
   const root = path.resolve(cwd, getStringFlag(args, "path") ?? args.positional[0] ?? ".");
   const report = await createStatusReport(root);
   const findings = await createDoctorFindings(root);
+
+  if (hasFlag(args, "json")) {
+    console.log(JSON.stringify(createDoctorJsonReport(root, report, findings), null, 2));
+    return;
+  }
 
   console.log(`PMG doctor for ${root}`);
 
@@ -44,6 +49,42 @@ export async function doctorCommand(rawArgs: string[], cwd: string): Promise<voi
   console.log("Next checks planned for future releases:");
   console.log("- stale memory detection");
   console.log("- template drift detection");
+}
+
+type StatusReport = Awaited<ReturnType<typeof createStatusReport>>;
+
+interface DoctorJsonReport {
+  root: string;
+  ok: boolean;
+  errors: DoctorFinding[];
+  warnings: DoctorFinding[];
+  summary: {
+    errorCount: number;
+    warningCount: number;
+  };
+}
+
+function createDoctorJsonReport(root: string, report: StatusReport, findings: DoctorFinding[]): DoctorJsonReport {
+  const missingRequiredFiles = report.checks
+    .filter((check) => check.required && !check.ok)
+    .map((check): DoctorFinding => ({
+      severity: "error",
+      path: check.path,
+      message: "required PMG file is missing"
+    }));
+  const errors = [...missingRequiredFiles, ...findings.filter((finding) => finding.severity === "error")];
+  const warnings = findings.filter((finding) => finding.severity === "warning");
+
+  return {
+    root,
+    ok: report.ok && errors.length === 0,
+    errors,
+    warnings,
+    summary: {
+      errorCount: errors.length,
+      warningCount: warnings.length
+    }
+  };
 }
 
 export async function createDoctorFindings(root: string): Promise<DoctorFinding[]> {
