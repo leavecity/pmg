@@ -233,7 +233,96 @@ async function checkMemoryProposalContracts(root: string, findings: DoctorFindin
     if (type === "conflict-resolution") {
       await checkConflictResolutionProposal(root, relativePath, content, metadata, findings);
     }
+
+    if (type === "memory-cleanup") {
+      await checkMemoryCleanupProposal(root, relativePath, content, findings);
+    }
   }
+}
+
+async function checkMemoryCleanupProposal(
+  root: string,
+  relativePath: string,
+  content: string,
+  findings: DoctorFinding[]
+): Promise<void> {
+  if (!hasMarkdownSection(content, "Findings")) {
+    findings.push({
+      severity: "error",
+      path: relativePath,
+      message: "memory-cleanup proposal missing Findings section"
+    });
+    return;
+  }
+
+  const cleanupFindings = parseCleanupFindings(content, relativePath, findings);
+  if (cleanupFindings.length === 0) {
+    findings.push({
+      severity: "error",
+      path: relativePath,
+      message: "memory-cleanup proposal has no findings"
+    });
+    return;
+  }
+
+  for (const cleanupFinding of cleanupFindings) {
+    const absolutePath = path.resolve(root, cleanupFinding.path);
+    const projectRelativePath = path.relative(root, absolutePath);
+
+    if (projectRelativePath.startsWith("..") || path.isAbsolute(projectRelativePath)) {
+      findings.push({
+        severity: "error",
+        path: relativePath,
+        message: `memory-cleanup finding path resolves outside the project root: ${cleanupFinding.path}`
+      });
+      continue;
+    }
+
+    if (!(await pathExists(absolutePath))) {
+      findings.push({
+        severity: "warning",
+        path: relativePath,
+        message: `memory-cleanup finding path does not exist: ${cleanupFinding.path}`
+      });
+    }
+  }
+}
+
+function parseCleanupFindings(
+  content: string,
+  proposalPath: string,
+  findings: DoctorFinding[]
+): Array<{ path: string; message: string }> {
+  const section = extractMarkdownSection(content, "Findings");
+
+  if (section === "Pending.") {
+    return [];
+  }
+
+  const parsed: Array<{ path: string; message: string }> = [];
+  for (const line of section.split(/\r?\n/g)) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    const match = trimmed.match(/^-\s+(.+?):\s+(.+)$/);
+    if (!match) {
+      findings.push({
+        severity: "error",
+        path: proposalPath,
+        message: `memory-cleanup finding line must use "- <path>: <message>": ${trimmed}`
+      });
+      continue;
+    }
+
+    parsed.push({
+      path: match[1],
+      message: match[2]
+    });
+  }
+
+  return parsed;
 }
 
 async function checkConflictResolutionProposal(
@@ -294,6 +383,21 @@ async function checkProjectRelativeMetadataPath(
 function hasMarkdownSection(content: string, heading: string): boolean {
   const pattern = new RegExp(`^## ${escapeRegExp(heading)}\\s*$`, "im");
   return pattern.test(content);
+}
+
+function extractMarkdownSection(content: string, heading: string): string {
+  const pattern = new RegExp(`^## ${escapeRegExp(heading)}\\s*$`, "im");
+  const match = content.match(pattern);
+
+  if (!match || match.index === undefined) {
+    return "Pending.";
+  }
+
+  const start = match.index + match[0].length;
+  const rest = content.slice(start);
+  const nextHeading = rest.search(/^##\s+/m);
+  const section = nextHeading >= 0 ? rest.slice(0, nextHeading) : rest;
+  return section.trim() || "Pending.";
 }
 
 function escapeRegExp(input: string): string {
