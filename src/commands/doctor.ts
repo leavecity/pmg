@@ -11,6 +11,16 @@ export interface DoctorFinding {
   message: string;
 }
 
+const VALID_ACTIVE_MEMORY_STATUSES = [
+  "archived",
+  "confirmed",
+  "conflicting",
+  "deprecated",
+  "experimental",
+  "inferred",
+  "pending"
+];
+
 export async function doctorCommand(rawArgs: string[], cwd: string): Promise<void> {
   const args = parseArgs(rawArgs);
   const root = path.resolve(cwd, getStringFlag(args, "path") ?? args.positional[0] ?? ".");
@@ -159,6 +169,14 @@ async function checkJsonRegistry(
         message: `referenced file does not exist: ${entry.path}`
       });
     }
+
+    if (key === "memory" && entry.path.replace(/\\/g, "/").startsWith(".pmg/memory/archive/")) {
+      findings.push({
+        severity: "error",
+        path: relativePath,
+        message: `registry must not reference archived memory: ${entry.path}`
+      });
+    }
   }
 }
 
@@ -168,7 +186,12 @@ async function checkMemoryStatus(root: string, findings: DoctorFinding[]): Promi
 
   for (const filePath of files) {
     const relativePath = path.relative(root, filePath).split(path.sep).join("/");
-    const metadata = readMetadata(await readText(filePath));
+    if (isMemoryProposalOrArchiveRecord(relativePath)) {
+      continue;
+    }
+
+    const content = await readText(filePath);
+    const metadata = readTopLevelMetadata(content);
 
     if (!metadata.status) {
       findings.push({
@@ -180,6 +203,22 @@ async function checkMemoryStatus(root: string, findings: DoctorFinding[]): Promi
     }
 
     const status = metadata.status.toLowerCase();
+
+    if (!VALID_ACTIVE_MEMORY_STATUSES.includes(status)) {
+      findings.push({
+        severity: "error",
+        path: relativePath,
+        message: `memory Status must be one of: ${VALID_ACTIVE_MEMORY_STATUSES.join(", ")}`
+      });
+    }
+
+    if (status === "pending" && hasConfirmedGuidance(content)) {
+      findings.push({
+        severity: "error",
+        path: relativePath,
+        message: "active memory has pending status but contains confirmed guidance"
+      });
+    }
 
     if (status === "deprecated") {
       findings.push({
@@ -208,6 +247,14 @@ async function checkMemoryStatus(root: string, findings: DoctorFinding[]): Promi
   }
 }
 
+function isMemoryProposalOrArchiveRecord(relativePath: string): boolean {
+  return relativePath.startsWith(".pmg/memory/proposals/") || relativePath.startsWith(".pmg/memory/archive/");
+}
+
+function hasConfirmedGuidance(content: string): boolean {
+  return /^##\s+(?:Promoted|Conflict Resolution):.+$/im.test(content) && /^Status:\s*confirmed\s*$/im.test(content);
+}
+
 async function checkMemoryProposalContracts(root: string, findings: DoctorFinding[]): Promise<void> {
   const proposalsRoot = path.join(root, ".pmg", "memory", "proposals");
   const files = await listMarkdownFiles(proposalsRoot);
@@ -215,7 +262,7 @@ async function checkMemoryProposalContracts(root: string, findings: DoctorFindin
   for (const filePath of files) {
     const relativePath = path.relative(root, filePath).split(path.sep).join("/");
     const content = await readText(filePath);
-    const metadata = readMetadata(content);
+    const metadata = readTopLevelMetadata(content);
     const type = metadata.type?.toLowerCase();
 
     if (!type) {
@@ -252,7 +299,7 @@ async function checkAppliedOrPromotedProposals(root: string, findings: DoctorFin
 
   for (const filePath of files) {
     const relativePath = path.relative(root, filePath).split(path.sep).join("/");
-    const metadata = readMetadata(await readText(filePath));
+    const metadata = readTopLevelMetadata(await readText(filePath));
     const status = metadata.status?.toLowerCase();
 
     if (status === "applied" || status === "promoted") {
@@ -289,7 +336,7 @@ async function checkArchiveAuditDirectories(root: string, findings: DoctorFindin
 }
 
 function getExpectedAuditArchiveDirectory(content: string): { directory: string; label: string } | undefined {
-  const metadata = readMetadata(content);
+  const metadata = readTopLevelMetadata(content);
   const status = metadata.status?.toLowerCase();
   const type = metadata.type?.toLowerCase();
   const title = getTitle(content);
@@ -327,6 +374,11 @@ function getExpectedAuditArchiveDirectory(content: string): { directory: string;
   }
 
   return undefined;
+}
+
+function readTopLevelMetadata(content: string): Record<string, string> {
+  const topLevelContent = content.split(/^##\s+/m)[0] ?? content;
+  return readMetadata(topLevelContent);
 }
 
 async function checkMemoryCleanupProposal(
