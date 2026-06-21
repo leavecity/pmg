@@ -34,17 +34,18 @@ export function scoreTextDetails(task: string, filePath: string, content: string
   const taskWords = new Set(taskWordList);
   const matchedTerms = new Set<string>();
   const normalizedPath = path.basename(filePath, path.extname(filePath)).toLowerCase();
-  const haystack = `${filePath}\n${content}`.toLowerCase();
+  const pathTokens = new Set(tokenize(normalizedPath));
+  const contentTokenCounts = countTokens(content);
   let score = 0;
 
   for (const word of taskWordList) {
-    if (normalizedPath.includes(word)) {
+    if (pathTokens.has(word)) {
       score += 5;
       matchedTerms.add(word);
     }
-    const matches = haystack.match(new RegExp(escapeRegExp(word), "g"));
-    if (matches) {
-      score += Math.min(matches.length, 6);
+    const contentMatches = contentTokenCounts.get(word) ?? 0;
+    if (contentMatches > 0) {
+      score += Math.min(contentMatches, 6);
       matchedTerms.add(word);
     }
   }
@@ -74,6 +75,12 @@ export function excerpt(content: string, maxChars: number): string {
   return `${content.slice(0, maxChars).trim()}\n\n[Excerpt truncated by pmg context build]`;
 }
 
-function escapeRegExp(input: string): string {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function countTokens(input: string): Map<string, number> {
+  const counts = new Map<string, number>();
+
+  for (const token of tokenize(input)) {
+    counts.set(token, (counts.get(token) ?? 0) + 1);
+  }
+
+  return counts;
 }

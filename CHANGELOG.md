@@ -8,8 +8,13 @@ This project follows a pre-1.0 development flow. Entries describe repository-vis
 
 ### Added
 
+- Added unit coverage for context scoring helpers.
 - Added a documented `pmg context explain --json` schema.
 - Added fixture-backed tests for stable context explanation output.
+
+### Changed
+
+- Context scoring now matches task words as exact tokens instead of substrings, reducing false positives such as matching `auth` inside `authoring`.
 
 ## 0.1.0 - 2026-06-21
 
