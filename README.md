@@ -189,6 +189,8 @@ node dist/cli.js context explain --path /path/to/repo --task "implement login pa
 
 Explain output also includes `matchedTerms` for scored sources, so users can audit which task words contributed to context selection or exclusion.
 
+Explain output also includes `budgetUsage`, which reports selected, omitted, excluded, and low-score source counts so users can see when a file budget truncated otherwise relevant candidates.
+
 Write the bundle to a file:
 
 ```bash

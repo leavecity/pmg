@@ -39,6 +39,18 @@ interface ContextFilters {
   specs: boolean;
 }
 
+interface BudgetUsage {
+  candidateSourceCount: number;
+  selectedSourceCount: number;
+  omittedCandidateSourceCount: number;
+  excludedSourceCount: number;
+  lowScoreSourceCount: number;
+  reportedLowScoreSourceCount: number;
+  omittedLowScoreSourceCount: number;
+  maxFilesReached: boolean;
+  maxLowScoreSourcesReached: boolean;
+}
+
 const ALWAYS_INCLUDE = [
   { path: "AGENTS.md", score: 100, reason: "agent entrypoint" },
   { path: "PMG.md", score: 95, reason: "PMG entrypoint" },
@@ -150,6 +162,7 @@ interface ContextExplanation {
     maxLowScoreSources: number;
   };
   filters: ContextFilters;
+  budgetUsage: BudgetUsage;
   selectedSources: Array<{
     path: string;
     score: number;
@@ -190,6 +203,7 @@ function createContextExplanation(input: {
       maxLowScoreSources: input.maxLowScoreSources
     },
     filters: input.filters,
+    budgetUsage: createBudgetUsage(input),
     selectedSources: input.selected.map(toSourceSummary),
     candidateSources: input.candidates.map((candidate) => ({
       ...toSourceSummary(candidate),
@@ -197,6 +211,30 @@ function createContextExplanation(input: {
     })),
     excludedSources: input.excludedSources,
     lowScoreSources: input.lowScoreSources.slice(0, input.maxLowScoreSources)
+  };
+}
+
+function createBudgetUsage(input: {
+  maxLowScoreSources: number;
+  candidates: Candidate[];
+  selected: Candidate[];
+  excludedSources: ExcludedSource[];
+  lowScoreSources: LowScoreSource[];
+}): BudgetUsage {
+  const omittedCandidateSourceCount = Math.max(input.candidates.length - input.selected.length, 0);
+  const reportedLowScoreSourceCount = Math.min(input.lowScoreSources.length, input.maxLowScoreSources);
+  const omittedLowScoreSourceCount = Math.max(input.lowScoreSources.length - reportedLowScoreSourceCount, 0);
+
+  return {
+    candidateSourceCount: input.candidates.length,
+    selectedSourceCount: input.selected.length,
+    omittedCandidateSourceCount,
+    excludedSourceCount: input.excludedSources.length,
+    lowScoreSourceCount: input.lowScoreSources.length,
+    reportedLowScoreSourceCount,
+    omittedLowScoreSourceCount,
+    maxFilesReached: omittedCandidateSourceCount > 0,
+    maxLowScoreSourcesReached: omittedLowScoreSourceCount > 0
   };
 }
 
@@ -217,6 +255,7 @@ function renderContextExplanation(explanation: ContextExplanation): string {
   lines.push(`Task: ${explanation.task}`);
   lines.push(`Root: ${explanation.root}`);
   lines.push(`Budget: ${explanation.budgets.maxFiles} file(s), ${explanation.budgets.maxCharsPerFile} chars per file`);
+  lines.push(`Budget Usage: ${explanation.budgetUsage.selectedSourceCount}/${explanation.budgetUsage.candidateSourceCount} candidate source(s) selected, ${explanation.budgetUsage.omittedCandidateSourceCount} omitted by file budget`);
   lines.push("");
   lines.push("## Selected Sources");
   lines.push("");
