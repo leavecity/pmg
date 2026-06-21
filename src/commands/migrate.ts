@@ -1,11 +1,7 @@
 import path from "node:path";
 import { parseArgs, getStringFlag, hasFlag } from "../lib/args.js";
-import { pathExists, readText, writeText } from "../lib/fs.js";
-
-interface LayoutMarker {
-  schemaVersion: number;
-  layoutVersion: number;
-}
+import { pathExists, writeText } from "../lib/fs.js";
+import { createLayoutMarker, PMG_LAYOUT_PATH, readLayoutMarker, TARGET_LAYOUT_VERSION } from "../lib/layout.js";
 
 interface MigrationAction {
   path: string;
@@ -21,9 +17,6 @@ interface MigrationReport {
   actions: MigrationAction[];
   writes: string[];
 }
-
-const TARGET_LAYOUT_VERSION = 1;
-const LAYOUT_PATH = ".pmg/layout.json";
 
 export async function migrateCommand(rawArgs: string[], cwd: string): Promise<void> {
   const args = parseArgs(rawArgs);
@@ -44,7 +37,12 @@ export async function migrateCommand(rawArgs: string[], cwd: string): Promise<vo
 }
 
 async function createMigrationReport(root: string, apply: boolean): Promise<MigrationReport> {
-  const currentLayoutVersion = await readCurrentLayoutVersion(root);
+  const marker = await readLayoutMarker(root);
+  const currentLayoutVersion = marker?.layoutVersion ?? null;
+  if (currentLayoutVersion !== null && currentLayoutVersion > TARGET_LAYOUT_VERSION) {
+    throw new Error("PMG layout marker is newer than this tool supports.");
+  }
+
   const needsLayoutMarker = currentLayoutVersion !== TARGET_LAYOUT_VERSION;
   const mode = apply ? "apply" : "dry-run";
   const actions: MigrationAction[] = [];
@@ -52,15 +50,15 @@ async function createMigrationReport(root: string, apply: boolean): Promise<Migr
 
   if (needsLayoutMarker) {
     const action = {
-      path: LAYOUT_PATH,
+      path: PMG_LAYOUT_PATH,
       description: "create layout version marker",
       applied: apply
     };
     actions.push(action);
 
     if (apply) {
-      await writeText(path.join(root, LAYOUT_PATH), `${JSON.stringify(createLayoutMarker(), null, 2)}\n`);
-      writes.push(LAYOUT_PATH);
+      await writeText(path.join(root, PMG_LAYOUT_PATH), `${JSON.stringify(createLayoutMarker(), null, 2)}\n`);
+      writes.push(PMG_LAYOUT_PATH);
     }
   }
 
@@ -71,25 +69,6 @@ async function createMigrationReport(root: string, apply: boolean): Promise<Migr
     targetLayoutVersion: TARGET_LAYOUT_VERSION,
     actions,
     writes
-  };
-}
-
-async function readCurrentLayoutVersion(root: string): Promise<number | null> {
-  const layoutPath = path.join(root, LAYOUT_PATH);
-
-  if (!(await pathExists(layoutPath))) {
-    return null;
-  }
-
-  const parsed = JSON.parse(await readText(layoutPath)) as Partial<LayoutMarker>;
-
-  return typeof parsed.layoutVersion === "number" ? parsed.layoutVersion : null;
-}
-
-function createLayoutMarker(): LayoutMarker {
-  return {
-    schemaVersion: 1,
-    layoutVersion: TARGET_LAYOUT_VERSION
   };
 }
 
