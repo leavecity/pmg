@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { cp, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -94,6 +94,16 @@ test("pmg init writes a conservative automation policy", async () => {
   assert.equal(policy.automation.doctorFix, "dry-run-only");
   assert.equal(policy.automation.memoryCleanup, "proposal-required");
   assert.equal(policy.automation.conflictResolution, "manual");
+});
+
+test("pmg init writes a layout version marker", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-init-layout-"));
+
+  await runPmg(["init", target]);
+  const layout = JSON.parse(await readFile(path.join(target, ".pmg", "layout.json"), "utf8"));
+
+  assert.equal(layout.schemaVersion, 1);
+  assert.equal(layout.layoutVersion, 1);
 });
 
 test("pmg init writes PMG local state rules to git info exclude", async () => {
@@ -244,6 +254,42 @@ test("pmg publish plan json reports no writes", async () => {
   assert.equal(payload.diff.git.ignoreStatus, "ready");
   assert.ok(payload.sharedCandidateFiles.some((source) => source.path === "AGENTS.md"));
   assert.ok(payload.risks.some((risk) => /explicit review/i.test(risk)));
+});
+
+test("pmg migrate dry run reports missing layout without writing", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-migrate-dry-run-"));
+  const layoutPath = path.join(target, ".pmg", "layout.json");
+
+  await runPmg(["init", target]);
+  await rm(layoutPath);
+
+  const { stdout } = await runPmg(["migrate", "--path", target]);
+
+  assert.match(stdout, /PMG migrate for/);
+  assert.match(stdout, /Mode: dry-run/);
+  assert.match(stdout, /Current Layout: missing/);
+  assert.match(stdout, /\.pmg\/layout\.json: create layout version marker/);
+  assert.match(stdout, /No files were modified/);
+  await assert.rejects(readFile(layoutPath, "utf8"), { code: "ENOENT" });
+});
+
+test("pmg migrate apply writes missing layout marker", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-migrate-apply-"));
+  const layoutPath = path.join(target, ".pmg", "layout.json");
+
+  await runPmg(["init", target]);
+  await rm(layoutPath);
+
+  const { stdout } = await runPmg(["migrate", "--path", target, "--apply", "--json"]);
+  const payload = JSON.parse(stdout);
+  const layout = JSON.parse(await readFile(layoutPath, "utf8"));
+
+  assert.equal(payload.mode, "apply");
+  assert.equal(payload.currentLayoutVersion, null);
+  assert.equal(payload.targetLayoutVersion, 1);
+  assert.deepEqual(payload.writes, [".pmg/layout.json"]);
+  assert.equal(layout.schemaVersion, 1);
+  assert.equal(layout.layoutVersion, 1);
 });
 
 test("pmg context build includes task-relevant memory", async () => {

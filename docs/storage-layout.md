@@ -6,6 +6,7 @@ The default initialized layout is:
 AGENTS.md
 PMG.md
 .pmg/
+  layout.json
   constitution.md
   memory/
     proposals/
@@ -23,6 +24,8 @@ PMG.md
 Root `AGENTS.md` should stay small. It points agents to PMG instead of storing all project memory.
 
 PMG local state should not pollute the host repository by default. The local-state and shared-promotion model is documented in [local-state-model.md](local-state-model.md).
+
+`.pmg/layout.json` stores the PMG layout version marker. `pmg migrate` uses it to identify older local layouts and apply explicit layout-marker migrations.
 
 `.pmg/registry/` stores indexes and skill registry files.
 
