@@ -15,9 +15,9 @@ Usage:
   pmg init [path] [--force] [--language <tag>]
   pmg status [path] [--json]
   pmg scan [path] [--json]
-  pmg doctor [path]
+  pmg doctor [path] [--json] [--fix-dry-run]
   pmg diff [path] [--json]
-  pmg context build --task <task> [--output context.md]
+  pmg context build --task <task> [--json] [--output context.md]
   pmg context explain --task <task> [--json] [--no-reviews] [--no-specs] [--max-low-score-sources <n>]
   pmg memory propose --title <title> --observation <text>
   pmg memory promote <proposal> [--target <domain-or-path>]
@@ -26,13 +26,15 @@ Usage:
   pmg memory project apply <proposal> [--reviewer <name>]
   pmg memory cleanup propose
   pmg memory cleanup apply <proposal> [--reviewer <name>]
+  pmg memory conflict propose
+  pmg memory conflict apply <proposal> [--reviewer <name>]
   pmg migrate [path] [--apply] [--json]
   pmg publish plan [path] [--json]
   pmg review create --type <type> --title <title>
   pmg review memory propose <review>
 
 MVP command status:
-  implemented: init, status, scan, doctor, diff, context build, memory propose/promote/archive, memory project propose/apply, memory cleanup propose/apply, migrate, publish plan, review create, review memory propose
+  implemented: init, status, scan, doctor, diff, context build/explain, memory propose/promote/archive, memory project propose/apply, memory cleanup propose/apply, memory conflict propose/apply, migrate, publish plan, review create, review memory propose
   planned: memory add, spec create, adr create
 `;
 
