@@ -143,11 +143,7 @@ export async function contextCommand(rawArgs: string[], cwd: string): Promise<vo
         excludedSources,
         lowScoreSources
       }),
-      selectedSources: selected.map((candidate) => ({
-        path: candidate.relativePath,
-        score: candidate.score,
-        reason: candidate.reason
-      })),
+      selectedSources: selected.map(toSourceSummary),
       excludedSources,
       content: bundle
     }, null, 2));

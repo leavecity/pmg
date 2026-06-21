@@ -341,8 +341,12 @@ test("pmg context build json explains excluded memory sources", async () => {
   ]);
   const payload = JSON.parse(stdout);
   const excludedPaths = payload.excludedSources.map((source) => source.path).sort();
+  const selectedCurrentMemory = payload.selectedSources.find((source) =>
+    source.path === ".pmg/memory/current-zephyr.md"
+  );
 
-  assert.ok(payload.selectedSources.some((source) => source.path === ".pmg/memory/current-zephyr.md"));
+  assert.ok(selectedCurrentMemory);
+  assert.deepEqual(selectedCurrentMemory.matchedTerms, ["zephyr", "handling"]);
   assert.deepEqual(excludedPaths, [
     ".pmg/memory/archive/promoted/audit-zephyr.md",
     ".pmg/memory/old-zephyr.md",
