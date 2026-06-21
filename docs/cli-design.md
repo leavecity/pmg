@@ -18,6 +18,7 @@ The CLI should be boring, deterministic, and easy to test.
 - `pmg memory project apply`: replace `.pmg/memory/project.md` after confirmation, keeping a previous snapshot and an audit record
 - `pmg memory cleanup propose`: create a pending cleanup proposal from memory hygiene warnings without modifying memory files
 - `pmg memory cleanup apply`: apply reviewed cleanup proposals conservatively, archiving deprecated memory while leaving conflicts for manual resolution; finding paths must stay inside the governed project
+- `pmg migrate`: report or apply layout marker migrations; dry run is the default and `--apply` is required for writes
 - `pmg publish plan`: report a read-only sharing plan based on the diff boundary report; use `--json` for structured output
 - `pmg memory conflict propose`: create a pending conflict-resolution proposal without modifying memory files
 - `pmg memory conflict apply`: apply a reviewed conflict-resolution proposal by writing resolved guidance, archiving the conflicting source, and keeping an audit record
@@ -29,6 +30,8 @@ The CLI should be boring, deterministic, and easy to test.
 `pmg publish plan --json` has a documented output contract in [publish-plan-schema.md](publish-plan-schema.md). It must stay read-only until an explicit confirmed write command exists.
 
 Policy automation starts with conservative dry-run plans, documented in [policy-automation.md](policy-automation.md). Real fix commands must not bypass proposal and audit workflows.
+
+Layout migration starts with `.pmg/layout.json` and `pmg migrate`, documented in [migration.md](migration.md). Migration dry-run should remain the default.
 
 `pmg context explain --json` has a documented output contract in [context-explain-schema.md](context-explain-schema.md). Changes to that schema should be covered by fixture-backed tests.
 

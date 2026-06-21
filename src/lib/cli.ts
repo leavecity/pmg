@@ -3,6 +3,7 @@ import { diffCommand } from "../commands/diff.js";
 import { doctorCommand } from "../commands/doctor.js";
 import { initCommand } from "../commands/init.js";
 import { memoryCommand } from "../commands/memory.js";
+import { migrateCommand } from "../commands/migrate.js";
 import { publishCommand } from "../commands/publish.js";
 import { reviewCommand } from "../commands/review.js";
 import { scanCommand } from "../commands/scan.js";
@@ -25,12 +26,13 @@ Usage:
   pmg memory project apply <proposal> [--reviewer <name>]
   pmg memory cleanup propose
   pmg memory cleanup apply <proposal> [--reviewer <name>]
+  pmg migrate [path] [--apply] [--json]
   pmg publish plan [path] [--json]
   pmg review create --type <type> --title <title>
   pmg review memory propose <review>
 
 MVP command status:
-  implemented: init, status, scan, doctor, diff, context build, memory propose/promote/archive, memory project propose/apply, memory cleanup propose/apply, publish plan, review create, review memory propose
+  implemented: init, status, scan, doctor, diff, context build, memory propose/promote/archive, memory project propose/apply, memory cleanup propose/apply, migrate, publish plan, review create, review memory propose
   planned: memory add, spec create, adr create
 `;
 
@@ -63,6 +65,9 @@ export async function runCli(args: string[], cwd: string): Promise<void> {
       return;
     case "memory":
       await memoryCommand(rest, cwd);
+      return;
+    case "migrate":
+      await migrateCommand(rest, cwd);
       return;
     case "publish":
       await publishCommand(rest, cwd);

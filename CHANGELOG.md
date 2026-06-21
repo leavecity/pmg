@@ -8,6 +8,7 @@ This project follows a pre-1.0 development flow. Entries describe repository-vis
 
 ### Added
 
+- Added `.pmg/layout.json` and `pmg migrate` dry-run/apply layout marker support.
 - Added package dry-run checks plus quick-start and recovery documentation.
 - Added default conservative policy templates and `pmg doctor --fix-dry-run`.
 - Added read-only `pmg publish plan` and `pmg publish plan --json`.
