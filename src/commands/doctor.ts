@@ -2,7 +2,7 @@ import { createStatusReport } from "./status.js";
 import { parseArgs, getStringFlag, hasFlag } from "../lib/args.js";
 import path from "node:path";
 import { listMarkdownFiles, pathExists, readText } from "../lib/fs.js";
-import { getPmgLocalStateIgnoreStatus } from "../lib/git.js";
+import { getPmgLocalStateIgnoreStatus, getTrackedPmgLocalStateStatus } from "../lib/git.js";
 import { checkLayoutMarker } from "../lib/layout.js";
 import { getTitle, readMetadata } from "../lib/markdown.js";
 import { readPmgPolicy } from "../lib/policy.js";
@@ -214,6 +214,7 @@ export async function createDoctorFindings(root: string): Promise<DoctorFinding[
   await checkMemoryAuditRecordLocations(root, findings);
   await checkReviewContracts(root, findings);
   await checkPmgLocalStateIgnored(root, findings);
+  await checkPmgLocalStateTracked(root, findings);
 
   return findings;
 }
@@ -230,6 +231,22 @@ async function checkPmgLocalStateIgnored(root: string, findings: DoctorFinding[]
     path: path.relative(root, status.repository.infoExcludePath).split(path.sep).join("/"),
     message: "PMG local state is not ignored by host Git repository"
   });
+}
+
+async function checkPmgLocalStateTracked(root: string, findings: DoctorFinding[]): Promise<void> {
+  const status = await getTrackedPmgLocalStateStatus(root);
+
+  if (!status.repository || status.trackedPaths.length === 0) {
+    return;
+  }
+
+  for (const trackedPath of status.trackedPaths) {
+    findings.push({
+      severity: "warning",
+      path: trackedPath,
+      message: "PMG local state is already tracked by host Git repository"
+    });
+  }
 }
 
 async function checkJsonRegistry(
