@@ -179,6 +179,14 @@ Temporarily filter optional source types:
 node dist/cli.js context explain --path /path/to/repo --task "implement login page" --no-reviews --no-specs --json
 ```
 
+Bound low-score audit output:
+
+```bash
+node dist/cli.js context explain --path /path/to/repo --task "implement login page" --max-low-score-sources 20 --json
+```
+
+`context explain` reports low-score sources as audit metadata only. They are not emitted as bundle content and they do not become candidate sources unless they pass the task relevance threshold.
+
 Write the bundle to a file:
 
 ```bash
