@@ -22,11 +22,11 @@ Memory files marked `Status: pending`, `Status: deprecated`, or `Status: archive
 
 Agent profiles under `.pmg/profiles/` are eligible for task-specific context selection. They should be included only when the task or agent mode makes them relevant.
 
-When `pmg context build --json` is used, the output includes the full bundle content plus `budgets`, `budgetUsage`, and `excludedSources`. Each excluded source includes a path, score, and reason so users can audit why PMG did not include it in the working context. Budget usage reports candidate, selected, omitted, excluded, and low-score counts so users can see when a file budget truncated otherwise relevant candidates.
+When `pmg context build --json` is used, the output includes the full bundle content plus `budgets`, `budgetUsage`, and `excludedSources`. Selected and excluded source summaries include a path, score, reason, and matched task terms so users can audit why PMG included or excluded each source. Budget usage reports candidate, selected, omitted, excluded, and low-score counts so users can see when a file budget truncated otherwise relevant candidates.
 
 `pmg context explain` reports the same selection logic without emitting the full context bundle. Its JSON output includes selected sources, candidate sources with `selected` markers, excluded sources, bounded low-score sources, matched task terms, budget usage, and the active budgets.
 
-Scored sources include `matchedTerms`, a stable list of task words that contributed to the source's relevance score. This makes context scoring auditable without exposing the source content in explain output.
+Scored JSON source summaries include `matchedTerms`, a stable list of task words that contributed to the source's relevance score. This makes context scoring auditable without exposing full source content in explain output.
 
 Explain output includes the same `budgetUsage` semantics so users can distinguish "not relevant" from "relevant but omitted by the current budget." It reports candidate, selected, omitted, excluded, low-score, and reported low-score counts, plus boolean flags for file-budget and low-score-budget truncation.
 

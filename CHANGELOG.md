@@ -8,6 +8,7 @@ This project follows a pre-1.0 development flow. Entries describe repository-vis
 
 ### Added
 
+- Added matched task terms to `pmg context build --json` selected source summaries.
 - Added budget metadata to `pmg context build --json`.
 - Added unit coverage for context scoring helpers.
 - Added a documented `pmg context explain --json` schema.
