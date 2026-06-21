@@ -199,6 +199,40 @@ test("pmg diff json reports unavailable Git state", async () => {
   assert.ok(payload.localStateFiles.some((source) => source.path === ".pmg/constitution.md"));
 });
 
+test("pmg publish plan reports shared candidates without writing", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-publish-plan-"));
+
+  await mkdir(path.join(target, ".git", "info"), { recursive: true });
+  await runPmg(["init", target]);
+  const agentsBefore = await readFile(path.join(target, "AGENTS.md"), "utf8");
+
+  const { stdout } = await runPmg(["publish", "plan", "--path", target]);
+
+  assert.match(stdout, /PMG publish plan for/);
+  assert.match(stdout, /Mode: read-only plan/);
+  assert.match(stdout, /Shared Candidate Files/);
+  assert.match(stdout, /AGENTS\.md/);
+  assert.match(stdout, /No files were modified/);
+  assert.equal(await readFile(path.join(target, "AGENTS.md"), "utf8"), agentsBefore);
+});
+
+test("pmg publish plan json reports no writes", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-publish-plan-json-"));
+
+  await mkdir(path.join(target, ".git", "info"), { recursive: true });
+  await runPmg(["init", target]);
+
+  const { stdout } = await runPmg(["publish", "plan", "--path", target, "--json"]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.mode, "plan");
+  assert.equal(payload.readOnly, true);
+  assert.deepEqual(payload.writes, []);
+  assert.equal(payload.diff.git.ignoreStatus, "ready");
+  assert.ok(payload.sharedCandidateFiles.some((source) => source.path === "AGENTS.md"));
+  assert.ok(payload.risks.some((risk) => /explicit review/i.test(risk)));
+});
+
 test("pmg context build includes task-relevant memory", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-"));
 

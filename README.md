@@ -96,6 +96,17 @@ node dist/cli.js diff /path/to/repo --json
 
 See [Diff JSON Schema](docs/diff-schema.md) for the structured output contract.
 
+Preview a future sharing action without writing anything:
+
+```bash
+node dist/cli.js publish plan --path /path/to/repo
+node dist/cli.js publish plan --path /path/to/repo --json
+```
+
+`pmg publish plan` is read-only. It reports shared candidates and risks, but it does not modify files, commit, push, or promote PMG local state.
+
+See [Publish Plan JSON Schema](docs/publish-plan-schema.md) for the structured plan output contract.
+
 Check PMG health:
 
 ```bash

@@ -64,6 +64,8 @@ Shared assets may include:
 
 Shared assets should not be written into the tracked repository silently. A future explicit command, such as `pmg publish`, can promote selected local PMG assets into tracked project files after user confirmation.
 
+The first publish-related command is `pmg publish plan`. It is read-only: it embeds the diff boundary report, lists shared candidates, reports risks, and leaves `writes` empty in JSON output. A later command may execute reviewed sharing, but plan mode must not write.
+
 ## Current Memory Updates
 
 Early PMG iterations should not automatically rewrite the current project memory file.
