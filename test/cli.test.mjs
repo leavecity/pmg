@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, readFile, readdir, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { test } from "node:test";
@@ -10,6 +10,7 @@ import { promisify } from "node:util";
 const execFileAsync = promisify(execFile);
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const cliPath = path.join(repoRoot, "dist", "cli.js");
+const fixturesRoot = path.join(repoRoot, "test", "fixtures");
 
 async function runPmg(args, options = {}) {
   return execFileAsync(process.execPath, [cliPath, ...args], {
@@ -19,6 +20,13 @@ async function runPmg(args, options = {}) {
       NO_COLOR: "1"
     }
   });
+}
+
+async function copyFixture(name) {
+  const target = await mkdtemp(path.join(os.tmpdir(), `pmg-fixture-${name}-`));
+
+  await cp(path.join(fixturesRoot, name), target, { recursive: true });
+  return target;
 }
 
 test("pmg init creates the default PMG layout", async () => {
@@ -437,6 +445,65 @@ test("pmg context explain json reports context budget usage", async () => {
   assert.ok(payload.budgetUsage.omittedCandidateSourceCount > 0);
   assert.ok(payload.candidateSources.some((source) =>
     source.path === ".pmg/memory/auth-budget.md" && source.selected === false
+  ));
+});
+
+test("pmg context explain json keeps the documented fixture schema stable", async () => {
+  const target = await copyFixture("context-explain-schema");
+
+  const { stdout } = await runPmg([
+    "context",
+    "explain",
+    "--path",
+    target,
+    "--task",
+    "auth token logging",
+    "--max-files",
+    "20",
+    "--max-low-score-sources",
+    "10",
+    "--json"
+  ]);
+  const payload = JSON.parse(stdout);
+
+  assert.deepEqual(Object.keys(payload).sort(), [
+    "budgetUsage",
+    "budgets",
+    "candidateSources",
+    "excludedSources",
+    "filters",
+    "lowScoreSources",
+    "root",
+    "selectedSources",
+    "task"
+  ].sort());
+  assert.equal(payload.content, undefined);
+  assert.deepEqual(Object.keys(payload.budgets).sort(), ["maxCharsPerFile", "maxFiles", "maxLowScoreSources"].sort());
+  assert.deepEqual(Object.keys(payload.filters).sort(), ["reviews", "specs"].sort());
+  assert.deepEqual(Object.keys(payload.budgetUsage).sort(), [
+    "candidateSourceCount",
+    "excludedSourceCount",
+    "lowScoreSourceCount",
+    "maxFilesReached",
+    "maxLowScoreSourcesReached",
+    "omittedCandidateSourceCount",
+    "omittedLowScoreSourceCount",
+    "reportedLowScoreSourceCount",
+    "selectedSourceCount"
+  ].sort());
+
+  const candidate = payload.candidateSources.find((source) => source.path === ".pmg/memory/current-auth.md");
+  assert.deepEqual(Object.keys(candidate).sort(), ["matchedTerms", "path", "reason", "score", "selected"].sort());
+  assert.deepEqual(candidate.matchedTerms, ["auth", "token", "logging"]);
+  assert.ok(payload.excludedSources.some((source) =>
+    source.path === ".pmg/memory/old-auth.md" &&
+    source.reason === "deprecated memory is excluded from default context" &&
+    source.matchedTerms.includes("auth")
+  ));
+  assert.ok(payload.lowScoreSources.some((source) =>
+    source.path === ".pmg/memory/billing.md" &&
+    source.reason === "below relevance threshold" &&
+    source.matchedTerms.length === 0
   ));
 });
 

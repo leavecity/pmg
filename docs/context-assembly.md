@@ -28,6 +28,8 @@ Scored sources include `matchedTerms`, a stable list of task words that contribu
 
 Explain output includes `budgetUsage` so users can distinguish "not relevant" from "relevant but omitted by the current budget." It reports candidate, selected, omitted, excluded, low-score, and reported low-score counts, plus boolean flags for file-budget and low-score-budget truncation.
 
+The JSON contract is documented in [context-explain-schema.md](context-explain-schema.md).
+
 Use `--no-reviews` or `--no-specs` to temporarily disable review or spec sources. Disabled task-relevant sources appear in `excludedSources` with an explicit filter reason.
 
 Use `--max-low-score-sources <n>` to control how many below-threshold sources appear in explain output. Low-score sources are audit metadata only; PMG does not emit their content and does not include them in the candidate list.
