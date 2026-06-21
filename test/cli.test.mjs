@@ -404,6 +404,42 @@ test("pmg context explain json reports selected candidates and excluded sources 
   );
 });
 
+test("pmg context explain json reports context budget usage", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-budget-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "auth-budget.md"),
+    "# Auth Budget\n\nStatus: confirmed\n\nAuth token logging and auth token storage rules must stay visible.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg([
+    "context",
+    "explain",
+    "--path",
+    target,
+    "--task",
+    "auth token logging",
+    "--max-files",
+    "5",
+    "--json"
+  ]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.budgetUsage.maxFilesReached, true);
+  assert.equal(payload.budgetUsage.selectedSourceCount, 5);
+  assert.equal(payload.budgetUsage.candidateSourceCount, payload.candidateSources.length);
+  assert.equal(
+    payload.budgetUsage.omittedCandidateSourceCount,
+    payload.candidateSources.length - payload.selectedSources.length
+  );
+  assert.ok(payload.budgetUsage.omittedCandidateSourceCount > 0);
+  assert.ok(payload.candidateSources.some((source) =>
+    source.path === ".pmg/memory/auth-budget.md" && source.selected === false
+  ));
+});
+
 test("pmg context explain reports review sources disabled by filter flags", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-no-reviews-"));
 
