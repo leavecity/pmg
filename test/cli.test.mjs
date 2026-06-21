@@ -292,6 +292,99 @@ test("pmg migrate apply writes missing layout marker", async () => {
   assert.equal(layout.layoutVersion, 1);
 });
 
+test("pmg doctor warns when the layout marker is missing", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-layout-missing-"));
+  const layoutPath = path.join(target, ".pmg", "layout.json");
+
+  await runPmg(["init", target]);
+  await rm(layoutPath);
+
+  const { stdout } = await runPmg(["doctor", "--path", target, "--json"]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.ok, true);
+  assert.ok(payload.warnings.some((warning) =>
+    warning.path === ".pmg/layout.json" &&
+    warning.message === "PMG layout marker is missing; run pmg migrate before relying on layout compatibility"
+  ));
+});
+
+test("pmg doctor warns when the layout marker is outdated", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-layout-outdated-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "layout.json"),
+    JSON.stringify({ schemaVersion: 1, layoutVersion: 0 }, null, 2),
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", "--path", target, "--json"]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.ok, true);
+  assert.ok(payload.warnings.some((warning) =>
+    warning.path === ".pmg/layout.json" &&
+    warning.message === "PMG layout marker is older than this tool supports; run pmg migrate"
+  ));
+});
+
+test("pmg doctor reports invalid layout marker JSON", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-layout-invalid-json-"));
+
+  await runPmg(["init", target]);
+  await writeFile(path.join(target, ".pmg", "layout.json"), "{", "utf8");
+
+  const { stdout } = await runPmg(["doctor", "--path", target, "--json"]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.ok, false);
+  assert.ok(payload.errors.some((error) =>
+    error.path === ".pmg/layout.json" &&
+    error.message.startsWith("invalid PMG layout marker JSON:")
+  ));
+});
+
+test("pmg doctor reports invalid layout marker fields", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-layout-invalid-fields-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "layout.json"),
+    JSON.stringify({ schemaVersion: "1", layoutVersion: 1 }, null, 2),
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", "--path", target, "--json"]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.ok, false);
+  assert.ok(payload.errors.some((error) =>
+    error.path === ".pmg/layout.json" &&
+    error.message === "PMG layout marker schemaVersion must be a number"
+  ));
+});
+
+test("pmg doctor reports unsupported future layout markers", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-layout-future-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "layout.json"),
+    JSON.stringify({ schemaVersion: 1, layoutVersion: 99 }, null, 2),
+    "utf8"
+  );
+
+  const { stdout } = await runPmg(["doctor", "--path", target, "--json"]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.ok, false);
+  assert.ok(payload.errors.some((error) =>
+    error.path === ".pmg/layout.json" &&
+    error.message === "PMG layout marker is newer than this tool supports"
+  ));
+});
+
 test("pmg context build includes task-relevant memory", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-"));
 

@@ -13,6 +13,21 @@ New repositories initialized by PMG include:
 
 The marker lives at `.pmg/layout.json`.
 
+## Doctor Checks
+
+```bash
+pmg doctor --path /path/to/repo
+pmg doctor --path /path/to/repo --json
+```
+
+`pmg doctor` reports layout marker health before a migration is applied:
+
+- Missing layout markers are warnings, because older PMG repositories should remain inspectable.
+- Older layout versions are warnings and should be reviewed with `pmg migrate`.
+- Invalid marker JSON, invalid marker fields, and unsupported future layout versions are errors.
+
+Future layout versions are blocking because an older PMG tool must not silently rewrite a newer layout it does not understand.
+
 ## Dry Run
 
 ```bash

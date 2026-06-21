@@ -3,6 +3,7 @@ import { parseArgs, getStringFlag, hasFlag } from "../lib/args.js";
 import path from "node:path";
 import { listMarkdownFiles, pathExists, readText } from "../lib/fs.js";
 import { getPmgLocalStateIgnoreStatus } from "../lib/git.js";
+import { checkLayoutMarker } from "../lib/layout.js";
 import { getTitle, readMetadata } from "../lib/markdown.js";
 import { readPmgPolicy } from "../lib/policy.js";
 
@@ -207,6 +208,7 @@ export async function createDoctorFindings(root: string): Promise<DoctorFinding[
 
   await checkJsonRegistry(root, ".pmg/registry/memory-index.json", "memory", findings);
   await checkJsonRegistry(root, ".pmg/registry/skills.json", "skills", findings);
+  findings.push(...(await checkLayoutMarker(root)));
   await checkMemoryStatus(root, findings);
   await checkMemoryProposalContracts(root, findings);
   await checkMemoryAuditRecordLocations(root, findings);
