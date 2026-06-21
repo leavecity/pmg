@@ -187,6 +187,8 @@ node dist/cli.js context explain --path /path/to/repo --task "implement login pa
 
 `context explain` reports low-score sources as audit metadata only. They are not emitted as bundle content and they do not become candidate sources unless they pass the task relevance threshold.
 
+Explain output also includes `matchedTerms` for scored sources, so users can audit which task words contributed to context selection or exclusion.
+
 Write the bundle to a file:
 
 ```bash

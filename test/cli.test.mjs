@@ -394,6 +394,14 @@ test("pmg context explain json reports selected candidates and excluded sources 
   assert.ok(payload.selectedSources.some((source) => source.path === ".pmg/memory/current-auth.md"));
   assert.ok(payload.candidateSources.some((source) => source.path === ".pmg/memory/current-auth.md" && source.selected === true));
   assert.ok(payload.excludedSources.some((source) => source.path === ".pmg/memory/old-auth.md"));
+  assert.deepEqual(
+    payload.candidateSources.find((source) => source.path === ".pmg/memory/current-auth.md").matchedTerms,
+    ["auth", "token", "logging"]
+  );
+  assert.deepEqual(
+    payload.excludedSources.find((source) => source.path === ".pmg/memory/old-auth.md").matchedTerms,
+    ["auth", "token", "logging"]
+  );
 });
 
 test("pmg context explain reports review sources disabled by filter flags", async () => {
