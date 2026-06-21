@@ -19,9 +19,16 @@ interface ExcludedSource {
   score: number;
 }
 
+interface LowScoreSource {
+  path: string;
+  reason: string;
+  score: number;
+}
+
 interface CandidateCollection {
   candidates: Candidate[];
   excludedSources: ExcludedSource[];
+  lowScoreSources: LowScoreSource[];
 }
 
 interface ContextFilters {
@@ -48,6 +55,7 @@ const SEARCH_DIRS = [
 ];
 
 const MIN_EXCLUDED_SOURCE_SCORE = 2;
+const DEFAULT_MAX_LOW_SCORE_SOURCES = 10;
 
 export async function contextCommand(rawArgs: string[], cwd: string): Promise<void> {
   const args = parseArgs(rawArgs);
@@ -70,11 +78,12 @@ export async function contextCommand(rawArgs: string[], cwd: string): Promise<vo
 
   const maxFiles = getNumberFlag(args, "max-files", 12);
   const maxCharsPerFile = getNumberFlag(args, "max-chars-per-file", 4000);
+  const maxLowScoreSources = getNumberFlag(args, "max-low-score-sources", DEFAULT_MAX_LOW_SCORE_SOURCES);
   const filters = {
     reviews: !hasFlag(args, "no-reviews"),
     specs: !hasFlag(args, "no-specs")
   };
-  const { candidates, excludedSources } = await collectCandidates(root, task, filters);
+  const { candidates, excludedSources, lowScoreSources } = await collectCandidates(root, task, filters);
   const selected = selectCandidates(candidates, maxFiles);
 
   if (subcommand === "explain") {
@@ -83,10 +92,12 @@ export async function contextCommand(rawArgs: string[], cwd: string): Promise<vo
       root,
       maxFiles,
       maxCharsPerFile,
+      maxLowScoreSources,
       filters,
       candidates,
       selected,
-      excludedSources
+      excludedSources,
+      lowScoreSources
     });
 
     if (hasFlag(args, "json")) {
@@ -133,6 +144,7 @@ interface ContextExplanation {
   budgets: {
     maxFiles: number;
     maxCharsPerFile: number;
+    maxLowScoreSources: number;
   };
   filters: ContextFilters;
   selectedSources: Array<{
@@ -147,6 +159,7 @@ interface ContextExplanation {
     selected: boolean;
   }>;
   excludedSources: ExcludedSource[];
+  lowScoreSources: LowScoreSource[];
 }
 
 function createContextExplanation(input: {
@@ -154,10 +167,12 @@ function createContextExplanation(input: {
   root: string;
   maxFiles: number;
   maxCharsPerFile: number;
+  maxLowScoreSources: number;
   filters: ContextFilters;
   candidates: Candidate[];
   selected: Candidate[];
   excludedSources: ExcludedSource[];
+  lowScoreSources: LowScoreSource[];
 }): ContextExplanation {
   const selectedPaths = new Set(input.selected.map((candidate) => candidate.relativePath));
 
@@ -166,7 +181,8 @@ function createContextExplanation(input: {
     root: input.root,
     budgets: {
       maxFiles: input.maxFiles,
-      maxCharsPerFile: input.maxCharsPerFile
+      maxCharsPerFile: input.maxCharsPerFile,
+      maxLowScoreSources: input.maxLowScoreSources
     },
     filters: input.filters,
     selectedSources: input.selected.map(toSourceSummary),
@@ -174,7 +190,8 @@ function createContextExplanation(input: {
       ...toSourceSummary(candidate),
       selected: selectedPaths.has(candidate.relativePath)
     })),
-    excludedSources: input.excludedSources
+    excludedSources: input.excludedSources,
+    lowScoreSources: input.lowScoreSources.slice(0, input.maxLowScoreSources)
   };
 }
 
@@ -213,6 +230,12 @@ function renderContextExplanation(explanation: ContextExplanation): string {
   for (const source of explanation.excludedSources) {
     lines.push(`- ${source.path} (${source.reason}, score ${source.score})`);
   }
+  lines.push("");
+  lines.push("## Low Score Sources");
+  lines.push("");
+  for (const source of explanation.lowScoreSources) {
+    lines.push(`- ${source.path} (${source.reason}, score ${source.score})`);
+  }
 
   return lines.join("\n");
 }
@@ -220,6 +243,7 @@ function renderContextExplanation(explanation: ContextExplanation): string {
 async function collectCandidates(root: string, task: string, filters: ContextFilters): Promise<CandidateCollection> {
   const byPath = new Map<string, Candidate>();
   const excludedSources: ExcludedSource[] = [];
+  const lowScoreSources: LowScoreSource[] = [];
 
   for (const item of ALWAYS_INCLUDE) {
     const absolutePath = path.join(root, item.path);
@@ -267,13 +291,20 @@ async function collectCandidates(root: string, task: string, filters: ContextFil
           score,
           reason: "matched task keywords"
         });
+      } else {
+        lowScoreSources.push({
+          path: relativePath,
+          score,
+          reason: "below relevance threshold"
+        });
       }
     }
   }
 
   return {
     candidates: [...byPath.values()],
-    excludedSources: excludedSources.sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
+    excludedSources: excludedSources.sort((left, right) => right.score - left.score || left.path.localeCompare(right.path)),
+    lowScoreSources: lowScoreSources.sort((left, right) => right.score - left.score || left.path.localeCompare(right.path))
   };
 }
 

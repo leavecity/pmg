@@ -435,6 +435,39 @@ test("pmg context explain reports review sources disabled by filter flags", asyn
   ));
 });
 
+test("pmg context explain json reports bounded low-score sources", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-low-score-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "billing.md"),
+    "# Billing\n\nStatus: confirmed\n\nInvoices must include payment provider transaction ids.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg([
+    "context",
+    "explain",
+    "--path",
+    target,
+    "--task",
+    "auth token logging",
+    "--max-low-score-sources",
+    "10",
+    "--json"
+  ]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.budgets.maxLowScoreSources, 10);
+  assert.ok(payload.lowScoreSources.length <= 10);
+  assert.ok(payload.lowScoreSources.some((source) =>
+    source.path === ".pmg/memory/billing.md" &&
+    source.score === 0 &&
+    source.reason === "below relevance threshold"
+  ));
+  assert.ok(!payload.candidateSources.some((source) => source.path === ".pmg/memory/billing.md"));
+});
+
 test("pmg context build can include task-relevant agent profiles", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-profiles-"));
 
