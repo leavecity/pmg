@@ -22,6 +22,8 @@ The CLI should be boring, deterministic, and easy to test.
 - `pmg review create`: create a draft governance review artifact without modifying memory
 - `pmg review memory propose`: create a pending memory proposal from a review recommendation without promoting it
 
+`pmg context explain --json` has a documented output contract in [context-explain-schema.md](context-explain-schema.md). Changes to that schema should be covered by fixture-backed tests.
+
 ## Planned
 
 - `pmg memory add`

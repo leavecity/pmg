@@ -191,6 +191,8 @@ Explain output also includes `matchedTerms` for scored sources, so users can aud
 
 Explain output also includes `budgetUsage`, which reports selected, omitted, excluded, and low-score source counts so users can see when a file budget truncated otherwise relevant candidates.
 
+See [Context Explain JSON Schema](docs/context-explain-schema.md) for the stable explain output contract.
+
 Write the bundle to a file:
 
 ```bash
