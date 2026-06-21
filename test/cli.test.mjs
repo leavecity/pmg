@@ -367,6 +367,43 @@ test("pmg context build json explains excluded memory sources", async () => {
   );
 });
 
+test("pmg context build json reports context budget usage", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-build-budget-"));
+
+  await runPmg(["init", target]);
+  await writeFile(
+    path.join(target, ".pmg", "memory", "auth-budget.md"),
+    "# Auth Budget\n\nStatus: confirmed\n\nAuth token logging and auth token storage rules must stay visible.\n",
+    "utf8"
+  );
+
+  const { stdout } = await runPmg([
+    "context",
+    "build",
+    "--path",
+    target,
+    "--task",
+    "auth token logging",
+    "--max-files",
+    "5",
+    "--max-chars-per-file",
+    "500",
+    "--json"
+  ]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.budgets.maxFiles, 5);
+  assert.equal(payload.budgets.maxCharsPerFile, 500);
+  assert.equal(payload.budgetUsage.maxFilesReached, true);
+  assert.equal(payload.budgetUsage.selectedSourceCount, payload.selectedSources.length);
+  assert.equal(
+    payload.budgetUsage.omittedCandidateSourceCount,
+    payload.budgetUsage.candidateSourceCount - payload.selectedSources.length
+  );
+  assert.ok(payload.budgetUsage.omittedCandidateSourceCount > 0);
+  assert.doesNotMatch(payload.content, /auth-budget\.md/);
+});
+
 test("pmg context explain json reports selected candidates and excluded sources without content", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-explain-json-"));
 

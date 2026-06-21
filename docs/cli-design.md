@@ -8,7 +8,7 @@ The CLI should be boring, deterministic, and easy to test.
 - `pmg status`: report whether required PMG files exist
 - `pmg scan`: discover project guidance, specs, ADRs, and debt markers without writing memory
 - `pmg doctor`: run basic health, registry, local-state, memory hygiene, and proposal contract checks; use `--json` for structured `ok`, `errors`, `warnings`, and `summary` output
-- `pmg context build`: assemble a bounded task-specific context bundle
+- `pmg context build`: assemble a bounded task-specific context bundle; `--json` includes bundle content plus budget and exclusion metadata
 - `pmg context explain`: explain selected, candidate, excluded, omitted, and bounded low-score context sources without emitting the full context bundle; reports matched task terms, budget usage, and source filters such as `--no-reviews` and `--no-specs`
 - `pmg memory propose`: create a pending durable-memory candidate
 - `pmg memory promote`: append an approved proposal to a target memory file and keep an audit record
