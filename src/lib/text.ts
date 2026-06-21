@@ -13,6 +13,11 @@ const CATEGORY_KEYWORDS: Record<string, string[]> = {
   pitfalls: ["pitfall", "gotcha", "bug", "regression", "known issue"]
 };
 
+export interface TextScoreDetails {
+  score: number;
+  matchedTerms: string[];
+}
+
 export function tokenize(input: string): string[] {
   return input
     .toLowerCase()
@@ -21,18 +26,26 @@ export function tokenize(input: string): string[] {
 }
 
 export function scoreText(task: string, filePath: string, content: string): number {
-  const taskWords = new Set(tokenize(task));
+  return scoreTextDetails(task, filePath, content).score;
+}
+
+export function scoreTextDetails(task: string, filePath: string, content: string): TextScoreDetails {
+  const taskWordList = [...new Set(tokenize(task))];
+  const taskWords = new Set(taskWordList);
+  const matchedTerms = new Set<string>();
   const normalizedPath = path.basename(filePath, path.extname(filePath)).toLowerCase();
   const haystack = `${filePath}\n${content}`.toLowerCase();
   let score = 0;
 
-  for (const word of taskWords) {
+  for (const word of taskWordList) {
     if (normalizedPath.includes(word)) {
       score += 5;
+      matchedTerms.add(word);
     }
     const matches = haystack.match(new RegExp(escapeRegExp(word), "g"));
     if (matches) {
       score += Math.min(matches.length, 6);
+      matchedTerms.add(word);
     }
   }
 
@@ -41,12 +54,16 @@ export function scoreText(task: string, filePath: string, content: string): numb
       for (const keyword of keywords) {
         if (taskWords.has(keyword)) {
           score += 8;
+          matchedTerms.add(keyword);
         }
       }
     }
   }
 
-  return score;
+  return {
+    score,
+    matchedTerms: taskWordList.filter((word) => matchedTerms.has(word))
+  };
 }
 
 export function excerpt(content: string, maxChars: number): string {

@@ -3,7 +3,7 @@ import { mkdir } from "node:fs/promises";
 import { parseArgs, getNumberFlag, getStringFlag, hasFlag } from "../lib/args.js";
 import { listMarkdownFiles, pathExists, readText, toPosixPath, writeText } from "../lib/fs.js";
 import { readMetadata } from "../lib/markdown.js";
-import { excerpt, scoreText } from "../lib/text.js";
+import { excerpt, scoreTextDetails } from "../lib/text.js";
 
 interface Candidate {
   path: string;
@@ -11,18 +11,21 @@ interface Candidate {
   content: string;
   score: number;
   reason: string;
+  matchedTerms: string[];
 }
 
 interface ExcludedSource {
   path: string;
   reason: string;
   score: number;
+  matchedTerms: string[];
 }
 
 interface LowScoreSource {
   path: string;
   reason: string;
   score: number;
+  matchedTerms: string[];
 }
 
 interface CandidateCollection {
@@ -151,11 +154,13 @@ interface ContextExplanation {
     path: string;
     score: number;
     reason: string;
+    matchedTerms: string[];
   }>;
   candidateSources: Array<{
     path: string;
     score: number;
     reason: string;
+    matchedTerms: string[];
     selected: boolean;
   }>;
   excludedSources: ExcludedSource[];
@@ -195,11 +200,12 @@ function createContextExplanation(input: {
   };
 }
 
-function toSourceSummary(candidate: Candidate): { path: string; score: number; reason: string } {
+function toSourceSummary(candidate: Candidate): { path: string; score: number; reason: string; matchedTerms: string[] } {
   return {
     path: candidate.relativePath,
     score: candidate.score,
-    reason: candidate.reason
+    reason: candidate.reason,
+    matchedTerms: candidate.matchedTerms
   };
 }
 
@@ -215,29 +221,35 @@ function renderContextExplanation(explanation: ContextExplanation): string {
   lines.push("## Selected Sources");
   lines.push("");
   for (const source of explanation.selectedSources) {
-    lines.push(`- ${source.path} (${source.reason}, score ${source.score})`);
+    lines.push(`- ${source.path} (${formatSourceDetails(source.reason, source.score, source.matchedTerms)})`);
   }
   lines.push("");
   lines.push("## Candidate Sources");
   lines.push("");
   for (const source of explanation.candidateSources) {
     const selected = source.selected ? "selected" : "not selected";
-    lines.push(`- ${source.path} (${selected}, ${source.reason}, score ${source.score})`);
+    lines.push(`- ${source.path} (${selected}, ${formatSourceDetails(source.reason, source.score, source.matchedTerms)})`);
   }
   lines.push("");
   lines.push("## Excluded Sources");
   lines.push("");
   for (const source of explanation.excludedSources) {
-    lines.push(`- ${source.path} (${source.reason}, score ${source.score})`);
+    lines.push(`- ${source.path} (${formatSourceDetails(source.reason, source.score, source.matchedTerms)})`);
   }
   lines.push("");
   lines.push("## Low Score Sources");
   lines.push("");
   for (const source of explanation.lowScoreSources) {
-    lines.push(`- ${source.path} (${source.reason}, score ${source.score})`);
+    lines.push(`- ${source.path} (${formatSourceDetails(source.reason, source.score, source.matchedTerms)})`);
   }
 
   return lines.join("\n");
+}
+
+function formatSourceDetails(reason: string, score: number, matchedTerms: string[]): string {
+  const terms = matchedTerms.length > 0 ? `, terms ${matchedTerms.join(", ")}` : "";
+
+  return `${reason}, score ${score}${terms}`;
 }
 
 async function collectCandidates(root: string, task: string, filters: ContextFilters): Promise<CandidateCollection> {
@@ -253,7 +265,8 @@ async function collectCandidates(root: string, task: string, filters: ContextFil
         relativePath: item.path,
         content: await readText(absolutePath),
         score: item.score,
-        reason: item.reason
+        reason: item.reason,
+        matchedTerms: []
       });
     }
   }
@@ -267,7 +280,8 @@ async function collectCandidates(root: string, task: string, filters: ContextFil
 
       const content = await readText(filePath);
       const relativePath = toPosixPath(path.relative(root, filePath));
-      const baseScore = scoreText(task, relativePath, content);
+      const scoreDetails = scoreTextDetails(task, relativePath, content);
+      const baseScore = scoreDetails.score;
       const exclusionReason = sourceFilterExclusionReason(relativePath, filters) ?? defaultContextExclusionReason(relativePath, content);
 
       if (exclusionReason) {
@@ -275,7 +289,8 @@ async function collectCandidates(root: string, task: string, filters: ContextFil
           excludedSources.push({
             path: relativePath,
             score: baseScore,
-            reason: exclusionReason
+            reason: exclusionReason,
+            matchedTerms: scoreDetails.matchedTerms
           });
         }
         continue;
@@ -289,13 +304,15 @@ async function collectCandidates(root: string, task: string, filters: ContextFil
           relativePath,
           content,
           score,
-          reason: "matched task keywords"
+          reason: "matched task keywords",
+          matchedTerms: scoreDetails.matchedTerms
         });
       } else {
         lowScoreSources.push({
           path: relativePath,
           score,
-          reason: "below relevance threshold"
+          reason: "below relevance threshold",
+          matchedTerms: scoreDetails.matchedTerms
         });
       }
     }
