@@ -7,7 +7,7 @@ The CLI should be boring, deterministic, and easy to test.
 - `pmg init`: copy the default PMG files into a repository and maintain local Git ignore rules when possible
 - `pmg status`: report whether required PMG files exist
 - `pmg scan`: discover project guidance, specs, ADRs, and debt markers without writing memory
-- `pmg doctor`: run basic health, registry, local-state, memory hygiene, and proposal contract checks; use `--json` for structured `ok`, `errors`, `warnings`, and `summary` output
+- `pmg doctor`: run basic health, registry, local-state, memory hygiene, and proposal contract checks; use `--json` for structured `ok`, `errors`, `warnings`, and `summary` output; use `--fix-dry-run` for read-only policy fix plans
 - `pmg diff`: report PMG local-state files, shared candidate files, and host Git ignore readiness without emitting file content; use `--json` for the structured boundary report
 - `pmg context build`: assemble a bounded task-specific context bundle; `--json` includes bundle content plus matched-term, budget, and exclusion metadata
 - `pmg context explain`: explain selected, candidate, excluded, omitted, and bounded low-score context sources without emitting the full context bundle; reports matched task terms, budget usage, and source filters such as `--no-reviews` and `--no-specs`
@@ -27,6 +27,8 @@ The CLI should be boring, deterministic, and easy to test.
 `pmg diff --json` has a documented output contract in [diff-schema.md](diff-schema.md). Changes should preserve its read-only boundary-report semantics.
 
 `pmg publish plan --json` has a documented output contract in [publish-plan-schema.md](publish-plan-schema.md). It must stay read-only until an explicit confirmed write command exists.
+
+Policy automation starts with conservative dry-run plans, documented in [policy-automation.md](policy-automation.md). Real fix commands must not bypass proposal and audit workflows.
 
 `pmg context explain --json` has a documented output contract in [context-explain-schema.md](context-explain-schema.md). Changes to that schema should be covered by fixture-backed tests.
 

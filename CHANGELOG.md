@@ -8,6 +8,7 @@ This project follows a pre-1.0 development flow. Entries describe repository-vis
 
 ### Added
 
+- Added default conservative policy templates and `pmg doctor --fix-dry-run`.
 - Added read-only `pmg publish plan` and `pmg publish plan --json`.
 - Added `pmg diff --json` structured local-state boundary reporting.
 - Added `pmg diff` human-readable local-state and shared-candidate reporting.

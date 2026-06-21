@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "mode": "conservative",
+  "automation": {
+    "doctorFix": "dry-run-only",
+    "memoryCleanup": "proposal-required",
+    "conflictResolution": "manual"
+  }
+}

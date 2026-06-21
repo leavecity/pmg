@@ -83,6 +83,19 @@ test("pmg init can write a project language profile", async () => {
   assert.match(languageProfile, /Machine-Metadata-Language: en/);
 });
 
+test("pmg init writes a conservative automation policy", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-init-policy-"));
+
+  await runPmg(["init", target]);
+  const policy = JSON.parse(await readFile(path.join(target, ".pmg", "policy.json"), "utf8"));
+
+  assert.equal(policy.schemaVersion, 1);
+  assert.equal(policy.mode, "conservative");
+  assert.equal(policy.automation.doctorFix, "dry-run-only");
+  assert.equal(policy.automation.memoryCleanup, "proposal-required");
+  assert.equal(policy.automation.conflictResolution, "manual");
+});
+
 test("pmg init writes PMG local state rules to git info exclude", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-init-git-"));
 
@@ -1289,6 +1302,45 @@ test("pmg doctor json reports errors and warnings", async () => {
     path: ".pmg/memory/deprecated-rule.md",
     message: "deprecated memory should be archived or replaced in current context"
   });
+});
+
+test("pmg doctor fix dry run reports planned actions without writing", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-fix-dry-run-"));
+  const excludePath = path.join(target, ".git", "info", "exclude");
+
+  await mkdir(path.dirname(excludePath), { recursive: true });
+  await runPmg(["init", target]);
+  await writeFile(excludePath, "", "utf8");
+
+  const { stdout } = await runPmg(["doctor", "--path", target, "--fix-dry-run"]);
+
+  assert.match(stdout, /PMG doctor fix dry run for/);
+  assert.match(stdout, /Policy: conservative/);
+  assert.match(stdout, /\.git\/info\/exclude/);
+  assert.match(stdout, /Add missing PMG local-state ignore rules/);
+  assert.match(stdout, /No files were modified/);
+  assert.equal(await readFile(excludePath, "utf8"), "");
+});
+
+test("pmg doctor fix dry run json reports planned actions", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-fix-dry-run-json-"));
+  const excludePath = path.join(target, ".git", "info", "exclude");
+
+  await mkdir(path.dirname(excludePath), { recursive: true });
+  await runPmg(["init", target]);
+  await writeFile(excludePath, "", "utf8");
+
+  const { stdout } = await runPmg(["doctor", "--path", target, "--fix-dry-run", "--json"]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.fixPlan.mode, "dry-run");
+  assert.equal(payload.fixPlan.policy.mode, "conservative");
+  assert.equal(payload.fixPlan.writes.length, 0);
+  assert.ok(payload.fixPlan.actions.some((action) =>
+    action.path === ".git/info/exclude" &&
+    action.description === "Add missing PMG local-state ignore rules"
+  ));
+  assert.equal(await readFile(excludePath, "utf8"), "");
 });
 
 test("pmg doctor reports invalid memory proposal types", async () => {
