@@ -41,7 +41,9 @@ The command reports:
 - shared candidate files, such as `AGENTS.md`
 - whether PMG local-state ignore rules are ready, missing, or unavailable because the target is not inside a Git repository
 
-It must not emit file content, modify files, edit Git ignore rules, commit changes, or push anything. Future versions can add structured output and richer content comparison, but the first step is making the local/shared boundary visible.
+It must not emit file content, modify files, edit Git ignore rules, commit changes, or push anything. Use `pmg diff --json` when an agent or script needs the same boundary report as structured data.
+
+Future versions can add richer content comparison, but the first step is making the local/shared boundary visible.
 
 ## Shared Asset Promotion
 
