@@ -107,6 +107,8 @@ node dist/cli.js publish plan --path /path/to/repo --json
 
 See [Publish Plan JSON Schema](docs/publish-plan-schema.md) for the structured plan output contract.
 
+For a short end-to-end workflow, see [Quick Start](docs/quick-start.md). For repair and inspection workflows, see [Recovery Guide](docs/recovery-guide.md).
+
 Check PMG health:
 
 ```bash
