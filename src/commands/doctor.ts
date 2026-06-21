@@ -4,6 +4,7 @@ import path from "node:path";
 import { listMarkdownFiles, pathExists, readText } from "../lib/fs.js";
 import { getPmgLocalStateIgnoreStatus } from "../lib/git.js";
 import { getTitle, readMetadata } from "../lib/markdown.js";
+import { readPmgPolicy } from "../lib/policy.js";
 
 export interface DoctorFinding {
   severity: "error" | "warning";
@@ -26,9 +27,24 @@ export async function doctorCommand(rawArgs: string[], cwd: string): Promise<voi
   const root = path.resolve(cwd, getStringFlag(args, "path") ?? args.positional[0] ?? ".");
   const report = await createStatusReport(root);
   const findings = await createDoctorFindings(root);
+  const fixDryRun = hasFlag(args, "fix-dry-run");
 
   if (hasFlag(args, "json")) {
-    console.log(JSON.stringify(createDoctorJsonReport(root, report, findings), null, 2));
+    const jsonReport = createDoctorJsonReport(root, report, findings);
+    if (fixDryRun) {
+      console.log(JSON.stringify({
+        ...jsonReport,
+        fixPlan: await createDoctorFixPlan(root, findings)
+      }, null, 2));
+      return;
+    }
+
+    console.log(JSON.stringify(jsonReport, null, 2));
+    return;
+  }
+
+  if (fixDryRun) {
+    console.log(renderDoctorFixDryRun(root, await createDoctorFixPlan(root, findings)));
     return;
   }
 
@@ -74,6 +90,27 @@ interface DoctorJsonReport {
   };
 }
 
+interface DoctorFixAction {
+  path: string;
+  description: string;
+  reason: string;
+}
+
+interface DoctorFixPlan {
+  mode: "dry-run";
+  policy: {
+    path: string;
+    source: "file" | "default";
+    mode: string;
+  };
+  actions: DoctorFixAction[];
+  writes: [];
+  summary: {
+    actionCount: number;
+    writeCount: number;
+  };
+}
+
 function createDoctorJsonReport(root: string, report: StatusReport, findings: DoctorFinding[]): DoctorJsonReport {
   const missingRequiredFiles = report.checks
     .filter((check) => check.required && !check.ok)
@@ -95,6 +132,74 @@ function createDoctorJsonReport(root: string, report: StatusReport, findings: Do
       warningCount: warnings.length
     }
   };
+}
+
+async function createDoctorFixPlan(root: string, findings: DoctorFinding[]): Promise<DoctorFixPlan> {
+  const policy = await readPmgPolicy(root);
+  const actions = findings.flatMap(toFixActions);
+
+  return {
+    mode: "dry-run",
+    policy: {
+      path: policy.path,
+      source: policy.source,
+      mode: policy.policy.mode
+    },
+    actions,
+    writes: [],
+    summary: {
+      actionCount: actions.length,
+      writeCount: 0
+    }
+  };
+}
+
+function toFixActions(finding: DoctorFinding): DoctorFixAction[] {
+  if (finding.path === ".git/info/exclude" && finding.message === "PMG local state is not ignored by host Git repository") {
+    return [{
+      path: finding.path,
+      description: "Add missing PMG local-state ignore rules",
+      reason: finding.message
+    }];
+  }
+
+  if (finding.message === "deprecated memory should be archived or replaced in current context") {
+    return [{
+      path: finding.path,
+      description: "Create a reviewed memory cleanup proposal",
+      reason: finding.message
+    }];
+  }
+
+  if (finding.message === "conflicting memory must be resolved before agents rely on it") {
+    return [{
+      path: finding.path,
+      description: "Create a reviewed conflict-resolution proposal",
+      reason: finding.message
+    }];
+  }
+
+  return [];
+}
+
+function renderDoctorFixDryRun(root: string, plan: DoctorFixPlan): string {
+  const lines: string[] = [];
+
+  lines.push(`PMG doctor fix dry run for ${root}`);
+  lines.push(`Policy: ${plan.policy.mode}`);
+  lines.push("");
+  lines.push(`Planned Actions (${plan.summary.actionCount})`);
+  if (plan.actions.length === 0) {
+    lines.push("- none");
+  } else {
+    for (const action of plan.actions) {
+      lines.push(`- ${action.path}: ${action.description}`);
+    }
+  }
+  lines.push("");
+  lines.push("No files were modified.");
+
+  return lines.join("\n");
 }
 
 export async function createDoctorFindings(root: string): Promise<DoctorFinding[]> {
