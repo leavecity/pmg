@@ -109,6 +109,14 @@ See [Publish Plan JSON Schema](docs/publish-plan-schema.md) for the structured p
 
 For a short end-to-end workflow, see [Quick Start](docs/quick-start.md). For repair and inspection workflows, see [Recovery Guide](docs/recovery-guide.md).
 
+Before preparing a package release, run:
+
+```bash
+npm run release:check
+```
+
+This is a local readiness check and does not publish the package. See [Release Checklist](docs/release-checklist.md).
+
 Check PMG health:
 
 ```bash

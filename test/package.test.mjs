@@ -11,15 +11,19 @@ test("package metadata exposes packaging checks and user onboarding docs", async
 
   assert.equal(pkg.bin.pmg, "./dist/cli.js");
   assert.equal(pkg.scripts["package:check"], "npm pack --dry-run");
+  assert.equal(pkg.scripts["release:check"], "npm test && npm run package:check && git diff --check");
   assert.ok(pkg.files.includes("docs"));
   assert.ok(pkg.files.includes("templates"));
   assert.ok(pkg.files.includes("CHANGELOG.md"));
 
   const quickStart = await readFile(path.join(repoRoot, "docs", "quick-start.md"), "utf8");
   const recoveryGuide = await readFile(path.join(repoRoot, "docs", "recovery-guide.md"), "utf8");
+  const releaseChecklist = await readFile(path.join(repoRoot, "docs", "release-checklist.md"), "utf8");
 
   assert.match(quickStart, /pmg init/);
   assert.match(quickStart, /pmg context build/);
   assert.match(recoveryGuide, /pmg doctor/);
   assert.match(recoveryGuide, /pmg diff/);
+  assert.match(releaseChecklist, /npm run release:check/);
+  assert.match(releaseChecklist, /does not publish/);
 });

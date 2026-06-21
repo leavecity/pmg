@@ -8,6 +8,7 @@ This project follows a pre-1.0 development flow. Entries describe repository-vis
 
 ### Added
 
+- Added `npm run release:check` and a release checklist.
 - Added CLI help contract tests for implemented command surfaces.
 - Added `pmg doctor` layout marker compatibility checks.
 - Added `.pmg/layout.json` and `pmg migrate` dry-run/apply layout marker support.
