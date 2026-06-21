@@ -131,6 +131,18 @@ export async function contextCommand(rawArgs: string[], cwd: string): Promise<vo
     console.log(JSON.stringify({
       task,
       root,
+      budgets: {
+        maxFiles,
+        maxCharsPerFile,
+        maxLowScoreSources
+      },
+      budgetUsage: createBudgetUsage({
+        maxLowScoreSources,
+        candidates,
+        selected,
+        excludedSources,
+        lowScoreSources
+      }),
       selectedSources: selected.map((candidate) => ({
         path: candidate.relativePath,
         score: candidate.score,

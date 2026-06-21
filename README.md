@@ -167,6 +167,12 @@ Build a task-specific context bundle:
 node dist/cli.js context build --path /path/to/repo --task "implement login page"
 ```
 
+Build JSON includes the bundle content plus budget and exclusion metadata:
+
+```bash
+node dist/cli.js context build --path /path/to/repo --task "implement login page" --json
+```
+
 Explain context selection without emitting the full bundle:
 
 ```bash
@@ -189,7 +195,7 @@ node dist/cli.js context explain --path /path/to/repo --task "implement login pa
 
 Explain output also includes `matchedTerms` for scored sources, so users can audit which task words contributed to context selection or exclusion.
 
-Explain output also includes `budgetUsage`, which reports selected, omitted, excluded, and low-score source counts so users can see when a file budget truncated otherwise relevant candidates.
+Build JSON and explain JSON both include `budgetUsage`, which reports selected, omitted, excluded, and low-score source counts so users can see when a file budget truncated otherwise relevant candidates.
 
 See [Context Explain JSON Schema](docs/context-explain-schema.md) for the stable explain output contract.
 
