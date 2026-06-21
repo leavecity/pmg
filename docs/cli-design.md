@@ -8,7 +8,7 @@ The CLI should be boring, deterministic, and easy to test.
 - `pmg status`: report whether required PMG files exist
 - `pmg scan`: discover project guidance, specs, ADRs, and debt markers without writing memory
 - `pmg doctor`: run basic health, registry, local-state, memory hygiene, and proposal contract checks; use `--json` for structured `ok`, `errors`, `warnings`, and `summary` output
-- `pmg diff`: report PMG local-state files, shared candidate files, and host Git ignore readiness without emitting file content
+- `pmg diff`: report PMG local-state files, shared candidate files, and host Git ignore readiness without emitting file content; use `--json` for the structured boundary report
 - `pmg context build`: assemble a bounded task-specific context bundle; `--json` includes bundle content plus matched-term, budget, and exclusion metadata
 - `pmg context explain`: explain selected, candidate, excluded, omitted, and bounded low-score context sources without emitting the full context bundle; reports matched task terms, budget usage, and source filters such as `--no-reviews` and `--no-specs`
 - `pmg memory propose`: create a pending durable-memory candidate
@@ -22,6 +22,8 @@ The CLI should be boring, deterministic, and easy to test.
 - `pmg memory conflict apply`: apply a reviewed conflict-resolution proposal by writing resolved guidance, archiving the conflicting source, and keeping an audit record
 - `pmg review create`: create a draft governance review artifact without modifying memory
 - `pmg review memory propose`: create a pending memory proposal from a review recommendation without promoting it
+
+`pmg diff --json` has a documented output contract in [diff-schema.md](diff-schema.md). Changes should preserve its read-only boundary-report semantics.
 
 `pmg context explain --json` has a documented output contract in [context-explain-schema.md](context-explain-schema.md). Changes to that schema should be covered by fixture-backed tests.
 

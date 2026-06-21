@@ -1,6 +1,6 @@
 import { readdir, stat } from "node:fs/promises";
 import path from "node:path";
-import { parseArgs, getStringFlag } from "../lib/args.js";
+import { parseArgs, getStringFlag, hasFlag } from "../lib/args.js";
 import { pathExists, toPosixPath } from "../lib/fs.js";
 import { getPmgLocalStateIgnoreStatus } from "../lib/git.js";
 
@@ -11,11 +11,16 @@ interface DiffGitStatus {
   missingRules: string[];
 }
 
-interface DiffReport {
+interface DiffFileSummary {
+  path: string;
+  role: "local-state" | "shared-candidate";
+}
+
+export interface DiffReport {
   root: string;
   git: DiffGitStatus;
-  localStateFiles: string[];
-  sharedCandidateFiles: string[];
+  localStateFiles: DiffFileSummary[];
+  sharedCandidateFiles: DiffFileSummary[];
   summary: {
     localStateFileCount: number;
     sharedCandidateFileCount: number;
@@ -36,13 +41,18 @@ export async function diffCommand(rawArgs: string[], cwd: string): Promise<void>
 
   const report = await createDiffReport(root);
 
+  if (hasFlag(args, "json")) {
+    console.log(JSON.stringify(report, null, 2));
+    return;
+  }
+
   console.log(renderDiffReport(report));
 }
 
-async function createDiffReport(root: string): Promise<DiffReport> {
+export async function createDiffReport(root: string): Promise<DiffReport> {
   const [localStateFiles, sharedCandidateFiles, git] = await Promise.all([
-    collectExistingFiles(root, LOCAL_STATE_ENTRIES),
-    collectExistingFiles(root, SHARED_CANDIDATE_ENTRIES),
+    collectExistingFiles(root, LOCAL_STATE_ENTRIES, "local-state"),
+    collectExistingFiles(root, SHARED_CANDIDATE_ENTRIES, "shared-candidate"),
     createDiffGitStatus(root)
   ]);
 
@@ -78,18 +88,22 @@ async function createDiffGitStatus(root: string): Promise<DiffGitStatus> {
   };
 }
 
-async function collectExistingFiles(root: string, entries: string[]): Promise<string[]> {
-  const files: string[] = [];
+async function collectExistingFiles(
+  root: string,
+  entries: string[],
+  role: DiffFileSummary["role"]
+): Promise<DiffFileSummary[]> {
+  const files: DiffFileSummary[] = [];
 
   for (const entry of entries) {
     const entryPath = path.join(root, entry);
     if (!(await pathExists(entryPath))) {
       continue;
     }
-    files.push(...(await collectFiles(root, entryPath)));
+    files.push(...(await collectFiles(root, entryPath)).map((filePath) => ({ path: filePath, role })));
   }
 
-  return files.sort();
+  return files.sort((left, right) => left.path.localeCompare(right.path));
 }
 
 async function collectFiles(root: string, currentPath: string): Promise<string[]> {
@@ -119,13 +133,13 @@ function renderDiffReport(report: DiffReport): string {
   lines.push(`Git Ignore: ${formatGitIgnoreStatus(report.git)}`);
   lines.push("");
   lines.push(`Local State Files (${report.summary.localStateFileCount})`);
-  for (const filePath of report.localStateFiles) {
-    lines.push(`- ${filePath}`);
+  for (const file of report.localStateFiles) {
+    lines.push(`- ${file.path}`);
   }
   lines.push("");
   lines.push(`Shared Candidate Files (${report.summary.sharedCandidateFileCount})`);
-  for (const filePath of report.sharedCandidateFiles) {
-    lines.push(`- ${filePath}`);
+  for (const file of report.sharedCandidateFiles) {
+    lines.push(`- ${file.path}`);
   }
   if (report.git.missingRules.length > 0) {
     lines.push("");

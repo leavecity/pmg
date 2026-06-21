@@ -14,7 +14,7 @@ Usage:
   pmg status [path] [--json]
   pmg scan [path] [--json]
   pmg doctor [path]
-  pmg diff [path]
+  pmg diff [path] [--json]
   pmg context build --task <task> [--output context.md]
   pmg context explain --task <task> [--json] [--no-reviews] [--no-specs] [--max-low-score-sources <n>]
   pmg memory propose --title <title> --observation <text>

@@ -8,6 +8,7 @@ This project follows a pre-1.0 development flow. Entries describe repository-vis
 
 ### Added
 
+- Added `pmg diff --json` structured local-state boundary reporting.
 - Added `pmg diff` human-readable local-state and shared-candidate reporting.
 - Added matched task terms to `pmg context build --json` selected source summaries.
 - Added budget metadata to `pmg context build --json`.

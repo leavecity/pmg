@@ -89,9 +89,12 @@ Review the local PMG state boundary before sharing anything with the host reposi
 
 ```bash
 node dist/cli.js diff /path/to/repo
+node dist/cli.js diff /path/to/repo --json
 ```
 
 `pmg diff` is currently a share-boundary report, not a content-level file diff. It lists PMG local-state files, shared candidate files such as `AGENTS.md`, and whether `.git/info/exclude` contains the expected local-state ignore rules.
+
+See [Diff JSON Schema](docs/diff-schema.md) for the structured output contract.
 
 Check PMG health:
 

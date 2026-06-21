@@ -164,6 +164,41 @@ test("pmg diff works when host Git is unavailable", async () => {
   assert.match(stdout, /AGENTS\.md/);
 });
 
+test("pmg diff json reports local-state boundaries", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-diff-json-"));
+
+  await mkdir(path.join(target, ".git", "info"), { recursive: true });
+  await runPmg(["init", target]);
+
+  const { stdout } = await runPmg(["diff", target, "--json"]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.root, target);
+  assert.equal(payload.git.available, true);
+  assert.equal(payload.git.ignoreStatus, "ready");
+  assert.deepEqual(payload.git.missingRules, []);
+  assert.equal(payload.summary.localStateFileCount, payload.localStateFiles.length);
+  assert.equal(payload.summary.sharedCandidateFileCount, payload.sharedCandidateFiles.length);
+  assert.ok(payload.localStateFiles.some((source) => source.path === ".pmg/constitution.md"));
+  assert.ok(payload.localStateFiles.some((source) => source.path === "PMG.md"));
+  assert.ok(payload.sharedCandidateFiles.some((source) => source.path === "AGENTS.md"));
+  assert.equal(payload.localStateFiles.find((source) => source.path === ".pmg/constitution.md").content, undefined);
+});
+
+test("pmg diff json reports unavailable Git state", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-diff-json-no-git-"));
+
+  await runPmg(["init", target]);
+
+  const { stdout } = await runPmg(["diff", target, "--json"]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.git.available, false);
+  assert.equal(payload.git.ignoreStatus, "unavailable");
+  assert.deepEqual(payload.git.missingRules, []);
+  assert.ok(payload.localStateFiles.some((source) => source.path === ".pmg/constitution.md"));
+});
+
 test("pmg context build includes task-relevant memory", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-"));
 
