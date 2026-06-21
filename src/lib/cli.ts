@@ -1,4 +1,5 @@
 import { contextCommand } from "../commands/context.js";
+import { diffCommand } from "../commands/diff.js";
 import { doctorCommand } from "../commands/doctor.js";
 import { initCommand } from "../commands/init.js";
 import { memoryCommand } from "../commands/memory.js";
@@ -13,6 +14,7 @@ Usage:
   pmg status [path] [--json]
   pmg scan [path] [--json]
   pmg doctor [path]
+  pmg diff [path]
   pmg context build --task <task> [--output context.md]
   pmg context explain --task <task> [--json] [--no-reviews] [--no-specs] [--max-low-score-sources <n>]
   pmg memory propose --title <title> --observation <text>
@@ -26,7 +28,7 @@ Usage:
   pmg review memory propose <review>
 
 MVP command status:
-  implemented: init, status, scan, doctor, context build, memory propose/promote/archive, memory project propose/apply, memory cleanup propose/apply, review create, review memory propose
+  implemented: init, status, scan, doctor, diff, context build, memory propose/promote/archive, memory project propose/apply, memory cleanup propose/apply, review create, review memory propose
   planned: memory add, spec create, adr create
 `;
 
@@ -50,6 +52,9 @@ export async function runCli(args: string[], cwd: string): Promise<void> {
       return;
     case "doctor":
       await doctorCommand(rest, cwd);
+      return;
+    case "diff":
+      await diffCommand(rest, cwd);
       return;
     case "context":
       await contextCommand(rest, cwd);

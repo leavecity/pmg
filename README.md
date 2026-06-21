@@ -85,6 +85,14 @@ This updates `.pmg/profiles/language.md`. PMG keeps command flags, JSON fields, 
 
 When the target is inside a Git repository, `pmg init` writes PMG local-state rules to `.git/info/exclude`. It does not modify the tracked root `.gitignore` by default.
 
+Review the local PMG state boundary before sharing anything with the host repository:
+
+```bash
+node dist/cli.js diff /path/to/repo
+```
+
+`pmg diff` is currently a share-boundary report, not a content-level file diff. It lists PMG local-state files, shared candidate files such as `AGENTS.md`, and whether `.git/info/exclude` contains the expected local-state ignore rules.
+
 Check PMG health:
 
 ```bash
