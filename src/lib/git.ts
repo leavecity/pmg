@@ -1,5 +1,7 @@
+import { execFile } from "node:child_process";
 import path from "node:path";
 import { readFile, stat } from "node:fs/promises";
+import { promisify } from "node:util";
 import { pathExists, readText, toPosixPath, writeText } from "./fs.js";
 
 export interface GitRepository {
@@ -13,11 +15,17 @@ export interface IgnoreRuleStatus {
   missingRules: string[];
 }
 
+export interface TrackedLocalStateStatus {
+  repository?: GitRepository;
+  trackedPaths: string[];
+}
+
 export interface EnsureIgnoreResult extends IgnoreRuleStatus {
   changed: boolean;
 }
 
 const IGNORE_HEADER = "# Project Memory Governance local state";
+const execFileAsync = promisify(execFile);
 
 export async function ensurePmgLocalStateIgnored(target: string): Promise<EnsureIgnoreResult> {
   const status = await getPmgLocalStateIgnoreStatus(target);
@@ -57,11 +65,64 @@ export async function getPmgLocalStateIgnoreStatus(target: string): Promise<Igno
   };
 }
 
+export async function getTrackedPmgLocalStateStatus(target: string): Promise<TrackedLocalStateStatus> {
+  const repository = await findGitRepository(target);
+
+  if (!repository) {
+    return { trackedPaths: [] };
+  }
+
+  const rules = pmgIgnoreRules(repository.worktreeRoot, target);
+  const queryPaths = rules.map((rule) => rule.endsWith("/") ? rule.slice(0, -1) : rule);
+
+  let stdout = "";
+  try {
+    const result = await execFileAsync("git", ["ls-files", "--", ...queryPaths], {
+      cwd: repository.worktreeRoot
+    });
+    stdout = result.stdout;
+  } catch {
+    return {
+      repository,
+      trackedPaths: []
+    };
+  }
+
+  const trackedFiles = stdout.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const trackedPaths = summarizeTrackedLocalStatePaths(rules, trackedFiles);
+
+  return {
+    repository,
+    trackedPaths
+  };
+}
+
 export function pmgIgnoreRules(worktreeRoot: string, target: string): string[] {
   const relativeTarget = toPosixPath(path.relative(worktreeRoot, target));
   const prefix = relativeTarget ? `${relativeTarget}/` : "";
 
   return [`${prefix}.pmg/`, `${prefix}PMG.md`];
+}
+
+function summarizeTrackedLocalStatePaths(rules: string[], trackedFiles: string[]): string[] {
+  const tracked = new Set<string>();
+  const pmgDirectoryRule = rules.find((rule) => rule.endsWith(".pmg/"));
+  const pmgFileRule = rules.find((rule) => rule.endsWith("PMG.md"));
+
+  for (const filePath of trackedFiles) {
+    if (pmgDirectoryRule) {
+      const pmgDirectoryPath = pmgDirectoryRule.slice(0, -1);
+      if (filePath === pmgDirectoryPath || filePath.startsWith(pmgDirectoryRule)) {
+        tracked.add(pmgDirectoryRule);
+      }
+    }
+
+    if (pmgFileRule && filePath === pmgFileRule) {
+      tracked.add(pmgFileRule);
+    }
+  }
+
+  return [...tracked].sort();
 }
 
 async function findGitRepository(start: string): Promise<GitRepository | undefined> {

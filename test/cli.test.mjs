@@ -1906,3 +1906,24 @@ test("pmg doctor warns when PMG local state is not ignored by host git", async (
   assert.match(stdout, /Warnings:/);
   assert.match(stdout, /\.git\/info\/exclude: PMG local state is not ignored by host Git repository/);
 });
+
+test("pmg doctor warns when PMG local state is tracked by host git", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-doctor-tracked-local-state-"));
+
+  await execFileAsync("git", ["init"], { cwd: target });
+  await runPmg(["init", target]);
+  await execFileAsync("git", ["add", "-f", ".pmg", "PMG.md"], { cwd: target });
+
+  const { stdout } = await runPmg(["doctor", "--path", target, "--json"]);
+  const payload = JSON.parse(stdout);
+
+  assert.equal(payload.ok, true);
+  assert.ok(payload.warnings.some((warning) =>
+    warning.path === ".pmg/" &&
+    warning.message === "PMG local state is already tracked by host Git repository"
+  ));
+  assert.ok(payload.warnings.some((warning) =>
+    warning.path === "PMG.md" &&
+    warning.message === "PMG local state is already tracked by host Git repository"
+  ));
+});

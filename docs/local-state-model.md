@@ -121,5 +121,5 @@ The first implementation slice should update initialization and health checks:
 
 - `pmg init` should detect whether the target is inside a Git repository.
 - If Git is available, `pmg init` should append PMG ignore rules to `.git/info/exclude` when missing.
-- `pmg doctor` should report whether PMG local state is ignored by the host Git repository.
+- `pmg doctor` should report whether PMG local state is ignored by the host Git repository and whether PMG local-state paths are already tracked.
 - Tests should cover Git and non-Git initialization paths.

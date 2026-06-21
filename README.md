@@ -128,7 +128,7 @@ node dist/cli.js doctor --path /path/to/repo --fix-dry-run
 node dist/cli.js migrate --path /path/to/repo
 ```
 
-`pmg doctor` also reports layout marker compatibility findings and early memory hygiene warnings, including deprecated memory, conflicting memory, and broken `Superseded-By` references. It reports blocking proposal contract errors when reviewed memory workflow files are malformed, including malformed cleanup and conflict-resolution proposals. The `--json` output emits `ok`, `errors`, `warnings`, and `summary` fields for scripts and CI checks.
+`pmg doctor` also reports layout marker compatibility findings, PMG local-state Git boundary warnings, and early memory hygiene warnings, including deprecated memory, conflicting memory, and broken `Superseded-By` references. It reports blocking proposal contract errors when reviewed memory workflow files are malformed, including malformed cleanup and conflict-resolution proposals. The `--json` output emits `ok`, `errors`, `warnings`, and `summary` fields for scripts and CI checks.
 
 `pmg doctor --fix-dry-run` reports a read-only fix plan based on the project policy. The default policy is conservative and keeps `writes` empty. See [Policy Automation](docs/policy-automation.md).
 
