@@ -134,6 +134,36 @@ test("pmg scan reports entrypoints and debt candidates", async () => {
   assert.match(stdout, /debt-candidate: work\.ts/);
 });
 
+test("pmg diff reports PMG local state and shared candidates", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-diff-"));
+
+  await mkdir(path.join(target, ".git", "info"), { recursive: true });
+  await runPmg(["init", target]);
+
+  const { stdout } = await runPmg(["diff", target]);
+
+  assert.match(stdout, /PMG diff for/);
+  assert.match(stdout, /Git Ignore: ready/);
+  assert.match(stdout, /Local State Files/);
+  assert.match(stdout, /\.pmg\/constitution\.md/);
+  assert.match(stdout, /PMG\.md/);
+  assert.match(stdout, /Shared Candidate Files/);
+  assert.match(stdout, /AGENTS\.md/);
+  assert.doesNotMatch(stdout, /Project Memory Governance \(pmg\) helps agents/);
+});
+
+test("pmg diff works when host Git is unavailable", async () => {
+  const target = await mkdtemp(path.join(os.tmpdir(), "pmg-diff-no-git-"));
+
+  await runPmg(["init", target]);
+
+  const { stdout } = await runPmg(["diff", target]);
+
+  assert.match(stdout, /Git Ignore: unavailable/);
+  assert.match(stdout, /\.pmg\/constitution\.md/);
+  assert.match(stdout, /AGENTS\.md/);
+});
+
 test("pmg context build includes task-relevant memory", async () => {
   const target = await mkdtemp(path.join(os.tmpdir(), "pmg-context-"));
 

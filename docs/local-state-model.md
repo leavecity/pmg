@@ -31,6 +31,18 @@ This keeps PMG useful during local agent collaboration without adding PMG files 
 
 If the project is not a Git repository, PMG should still initialize its files and report that version tracking is unavailable.
 
+## Local State Diff
+
+`pmg diff` is the first read-only shared-promotion inspection command. In the early 0.6 workflow, it is a local-state and share-boundary report rather than a content-level diff.
+
+The command reports:
+
+- PMG local-state files, such as `.pmg/` files and `PMG.md`
+- shared candidate files, such as `AGENTS.md`
+- whether PMG local-state ignore rules are ready, missing, or unavailable because the target is not inside a Git repository
+
+It must not emit file content, modify files, edit Git ignore rules, commit changes, or push anything. Future versions can add structured output and richer content comparison, but the first step is making the local/shared boundary visible.
+
 ## Shared Asset Promotion
 
 PMG should separate local state from shared assets.
