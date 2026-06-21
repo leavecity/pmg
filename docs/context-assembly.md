@@ -14,7 +14,9 @@ It should exclude unrelated memory.
 
 ## MVP behavior
 
-The MVP uses simple keyword scoring over Markdown files. It always includes stable entrypoint files, then selects a bounded number of task-relevant files.
+The MVP uses simple token-based keyword scoring over Markdown files. It always includes stable entrypoint files, then selects a bounded number of task-relevant files.
+
+Task words are matched as exact tokens in source content and source paths. This keeps scoring deterministic while avoiding substring false positives, such as matching `auth` inside `authoring`.
 
 Memory files marked `Status: pending`, `Status: deprecated`, or `Status: archived` are excluded from default context bundles. Files under `.pmg/memory/proposals/` and `.pmg/memory/archive/` are also excluded. PMG keeps pending memory, pending proposals, inactive memory, and audit records available for review, cleanup workflows, and historical analysis, but they should not guide normal agent work.
 
